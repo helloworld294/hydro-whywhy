@@ -1,4 +1,5 @@
 ## 本项目是hoj-vue (仅进行前端修改，不进行后端数据等修改，请您先进行HOJ的部署，https://gitee.com/himitzh0730/hoj-deploy）
+### demo:http://223.78.82.14:8300/home 名字：demo 密码：demodemo
 ### 介绍
 HOJ(⚡🔥Hcode Online Judge(HOJ)🔥⚡：基于SpringCloud与Vue前后端分离，分布式架构的在线测评平台OJ (An open source online judge system base on SpringBoot, Springcloud Alibaba and Vue.js !)) 来自why的二开版本，使用请您注明仓库地址，谢谢
 ### 我们更改的内容？
