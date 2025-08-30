@@ -1,3 +1,4 @@
+## 本项目是hoj-vue (仅进行前端修改，不进行后端数据等修改，请您先进行HOJ的部署，https://gitee.com/himitzh0730/hoj-deploy）
 ### 介绍
 HOJ(⚡🔥Hcode Online Judge(HOJ)🔥⚡：基于SpringCloud与Vue前后端分离，分布式架构的在线测评平台OJ (An open source online judge system base on SpringBoot, Springcloud Alibaba and Vue.js !)) 来自why的二开版本，使用请您注明仓库地址，谢谢
 ### 我们更改的内容？
@@ -18,9 +19,7 @@ HOJ(⚡🔥Hcode Online Judge(HOJ)🔥⚡：基于SpringCloud与Vue前后端分�
 
 8.添加后台图形化用户添加
 ### 如何安装？
-- 请您先进行HOJ的部署，https://gitee.com/himitzh0730/hoj-deploy
 - 部署完成后，请您 ```git clone https://gitee.com/whysblog/hoj-why.git /root/hoj-vue```
-
 ### 如何使用
 
 ``` cd /root/hoj-vue ```进入仓库
