@@ -32,4 +32,5 @@ npm install
 ```
 npm run build
 ```
-等待编译完成后，请您将dist文件放在你喜欢的地方，比如 /hoj/www/html/dist，然后修改 docker-compose.yml，在 hoj-frontend 模块中的 volumes 中增加一行 - /hoj/www/html/dist:/usr/share/nginx/html （冒号前面的请修改为实际的路径），然后 docker-compose up -d 即可。
+等待编译完成后，请您将dist文件放在你喜欢的地方，比如 /hoj/www/html/dist。
+然后修改 docker-compose.yml（位置在您自行部署的hoj下（可能是/root/HOJ-Deploy或者/root/hoj-deploy）,然后进入standAlone目录）修改命令```vim docker-compose.yml```，在 hoj-frontend 模块中的 volumes 中增加一行 - /hoj/www/html/dist:/usr/share/nginx/html （冒号前面的请修改为实际的路径），然后 docker-compose up -d 即可。
