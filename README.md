@@ -19,6 +19,11 @@ HOJ(⚡🔥Hcode Online Judge(HOJ)🔥⚡：基于SpringCloud与Vue前后端分�
 7.修复只有二开版本问题（讨论不显示）
 
 8.添加后台图形化用户添加
+
+9.提升导入限制
+
+10.强制实名
+
 ### 如何安装？
 - 部署完成后，请您 ```git clone https://gitee.com/whysblog/hoj-why.git /root/hoj-vue```
 ### 如何使用
