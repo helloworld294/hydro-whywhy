@@ -84,6 +84,7 @@
         :auto-upload="false"
         :on-success="uploadSucceeded"
         :on-error="uploadFailed"
+        :before-upload="beforeHojUpload"
       >
         <el-button
           size="small"
@@ -124,6 +125,7 @@
         :auto-upload="false"
         :on-success="uploadSucceeded"
         :on-error="uploadFailed"
+        :before-upload="beforeQduojUpload"
       >
         <el-button
           size="small"
@@ -164,6 +166,7 @@
         :auto-upload="false"
         :on-success="uploadSucceeded"
         :on-error="uploadFailed"
+        :before-upload="beforeFpsUpload"
       >
         <el-button
           size="small"
@@ -204,6 +207,7 @@
         :auto-upload="false"
         :on-success="uploadSucceeded"
         :on-error="uploadFailed"
+        :before-upload="beforeHydroUpload"
       >
         <el-button
           size="small"
@@ -231,6 +235,7 @@
 import api from '@/common/api';
 import utils from '@/common/utils';
 import myMessage from '@/common/message';
+import JSZip from 'jszip';
 export default {
   name: 'import_and_export',
   data() {
@@ -253,10 +258,17 @@ export default {
         fps: false,
         hydro:false,
       },
+      uploadTimeout: null, // 上传超时ID
     };
   },
   mounted() {
     this.getProblems();
+  },
+  beforeDestroy() {
+    // 组件销毁前清除超时
+    if (this.uploadTimeout) {
+      clearTimeout(this.uploadTimeout);
+    }
   },
   methods: {
     // 题目表部分勾选 改变选中的内容
@@ -302,6 +314,27 @@ export default {
     },
     submitUpload(ref) {
       this.loading[ref] = true;
+      
+      // 显示上传进度提示
+      const loadingInstance = this.$loading({
+        lock: true,
+        text: '正在上传大文件，请耐心等待...',
+        spinner: 'el-icon-loading',
+        background: 'rgba(0, 0, 0, 0.7)'
+      });
+      
+      // 设置上传超时时间
+      const uploadTimeout = setTimeout(() => {
+        if (this.loading[ref]) {
+          this.loading[ref] = false;
+          loadingInstance.close();
+          this.$message.error('文件上传超时，请检查网络连接或尝试较小的文件');
+        }
+      }, 600000); // 10分钟超时
+      
+      // 保存超时ID以便在成功或失败时清除
+      this.uploadTimeout = uploadTimeout;
+      
       this.$refs[ref].submit();
     },
     onFile1Change(file, fileList) {
@@ -316,11 +349,128 @@ export default {
     onFile4Change(file, fileList) {
       this.fileList4 = fileList.slice(-1);
     },
+    async beforeHojUpload(file) {
+      // 提高HOJ导入文件大小限制到2GB
+      const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+      if (file.size > maxSize) {
+        this.$message.error(`文件大小超过限制，最大支持2GB，当前文件大小：${(file.size / 1024 / 1024 / 1024).toFixed(2)}GB`);
+        return false;
+      }
+      
+      // 检查并补全config.yml
+      try {
+        const processedFile = await this.checkAndCompleteConfig(file, 'hoj');
+        // 如果文件被修改了，需要更新上传组件的文件列表
+        if (processedFile !== file) {
+          // 延迟更新文件列表，确保上传组件使用新文件
+          this.$nextTick(() => {
+            this.fileList1 = [{
+              name: processedFile.name,
+              size: processedFile.size,
+              raw: processedFile
+            }];
+          });
+        }
+        return true;
+      } catch (error) {
+        console.error('处理config.yml失败:', error);
+        return true; // 即使失败也允许上传
+      }
+    },
+    async beforeQduojUpload(file) {
+      // 提高QDUOJ导入文件大小限制到2GB
+      const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+      if (file.size > maxSize) {
+        this.$message.error(`文件大小超过限制，最大支持2GB，当前文件大小：${(file.size / 1024 / 1024 / 1024).toFixed(2)}GB`);
+        return false;
+      }
+      
+      // 检查并补全config.yml
+      try {
+        const processedFile = await this.checkAndCompleteConfig(file, 'qduoj');
+        if (processedFile !== file) {
+          this.$nextTick(() => {
+            this.fileList2 = [{
+              name: processedFile.name,
+              size: processedFile.size,
+              raw: processedFile
+            }];
+          });
+        }
+        return true;
+      } catch (error) {
+        console.error('处理config.yml失败:', error);
+        return true;
+      }
+    },
+    async beforeFpsUpload(file) {
+      // 提高FPS导入文件大小限制到2GB
+      const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+      if (file.size > maxSize) {
+        this.$message.error(`文件大小超过限制，最大支持2GB，当前文件大小：${(file.size / 1024 / 1024 / 1024).toFixed(2)}GB`);
+        return false;
+      }
+      
+      // 检查并补全config.yml
+      try {
+        const processedFile = await this.checkAndCompleteConfig(file, 'fps');
+        if (processedFile !== file) {
+          this.$nextTick(() => {
+            this.fileList3 = [{
+              name: processedFile.name,
+              size: processedFile.size,
+              raw: processedFile
+            }];
+          });
+        }
+        return true;
+      } catch (error) {
+        console.error('处理config.yml失败:', error);
+        return true;
+      }
+    },
+    async beforeHydroUpload(file) {
+      // 提高hydro导入文件大小限制到2GB
+      const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+      if (file.size > maxSize) {
+        this.$message.error(`文件大小超过限制，最大支持2GB，当前文件大小：${(file.size / 1024 / 1024 / 1024).toFixed(2)}GB`);
+        return false;
+      }
+      
+      // 检查并补全config.yml
+      try {
+        const processedFile = await this.checkAndCompleteConfig(file, 'hydro');
+        if (processedFile !== file) {
+          this.$nextTick(() => {
+            this.fileList4 = [{
+              name: processedFile.name,
+              size: processedFile.size,
+              raw: processedFile
+            }];
+          });
+        }
+        return true;
+      } catch (error) {
+        console.error('处理config.yml失败:', error);
+        return true;
+      }
+    },
     uploadSucceeded(response, file, fileList) {
+      // 清除所有加载状态
       this.loading.hoj = false;
       this.loading.qduoj = false;
       this.loading.fps = false;
       this.loading.hydro = false;
+      
+      // 清除上传超时
+      if (this.uploadTimeout) {
+        clearTimeout(this.uploadTimeout);
+        this.uploadTimeout = null;
+      }
+      
+      // 关闭加载提示
+      this.$loading().close();
+      
       if (response.status != 200) {
         myMessage.error(response.msg);
         this.$notify.error({
@@ -335,14 +485,99 @@ export default {
       }
     },
     uploadFailed() {
+      // 清除所有加载状态
       this.loading.hoj = false;
       this.loading.qduoj = false;
       this.loading.fps = false;
       this.loading.hydro = false;
+      
+      // 清除上传超时
+      if (this.uploadTimeout) {
+        clearTimeout(this.uploadTimeout);
+        this.uploadTimeout = null;
+      }
+      
+      // 关闭加载提示
+      this.$loading().close();
+      
       myMessage.error(this.$i18n.t('m.Upload_Problem_Failed'));
     },
     filterByKeyword() {
       this.getProblems();
+    },
+    // 生成默认的config.yml内容
+    generateDefaultConfig() {
+      return `type: default
+subtasks:
+  - score: 100
+    type: min
+    cases: ['1']
+  - score: 0
+    type: min
+    cases: ['2']
+  - score: 0
+    type: min
+    cases: ['3']
+  - score: 0
+    type: min
+    cases: ['4']
+  - score: 0
+    type: min
+    cases: ['5']
+  - score: 0
+    type: min
+    cases: ['6']
+  - score: 0
+    type: min
+    cases: ['7']
+  - score: 0
+    type: min
+    cases: ['8']
+  - score: 0
+    type: min
+    cases: ['9']
+  - score: 0
+    type: min
+    cases: ['10']
+`;
+    },
+    // 检查并补全config.yml文件
+    async checkAndCompleteConfig(file, uploadType) {
+      try {
+        // 只处理zip文件
+        if (!file.name.toLowerCase().endsWith('.zip')) {
+          return file;
+        }
+
+        const zip = new JSZip();
+        const zipContent = await zip.loadAsync(file);
+        
+        // 检查是否已有config.yml或config.yaml
+        const hasConfig = zipContent.files['config.yml'] || zipContent.files['config.yaml'];
+        
+        if (!hasConfig) {
+          // 生成默认config.yml
+          const defaultConfig = this.generateDefaultConfig();
+          zip.file('config.yml', defaultConfig);
+          
+          // 重新生成zip文件
+          const newZipBlob = await zip.generateAsync({ type: 'blob' });
+          
+          // 创建新的File对象
+          const newFile = new File([newZipBlob], file.name, {
+            type: 'application/zip',
+            lastModified: Date.now()
+          });
+          
+          this.$message.success('检测到缺少config.yml文件，已自动生成默认配置文件');
+          return newFile;
+        }
+        
+        return file;
+      } catch (error) {
+        console.warn('检查config.yml失败，使用原文件:', error);
+        return file;
+      }
     },
   },
 };

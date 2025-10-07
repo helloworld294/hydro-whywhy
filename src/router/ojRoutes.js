@@ -269,6 +269,12 @@ const ojRoutes = [
     meta: { requireAuth: true, title: 'Setting' }
   },
   {
+    name: 'RealNameAuth',
+    path: '/real-name-auth',
+    component: () => import('@/views/oj/user/RealNameAuth.vue'),
+    meta: { title: 'Real Name Authentication' }
+  },
+  {
     name: 'Logout',
     path: '/logout',
     component: Logout,

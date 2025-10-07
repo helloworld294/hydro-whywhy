@@ -15,8 +15,8 @@ Vue.prototype.$http = axios
 const isMobile = /ipad|iphone|midp|rv:1.2.3.4|ucweb|android|windows ce|windows mobile/.test(navigator.userAgent.toLowerCase());
 
 
-// 请求超时时间
-axios.defaults.timeout = 90000;
+// 请求超时时间 - 增加大文件上传超时时间
+axios.defaults.timeout = 600000; // 10分钟
 
 axios.interceptors.request.use(
 
@@ -1324,6 +1324,30 @@ const ojApi = {
     return ajax("/api/msg/clean", 'delete', {
       params
     });
+  },
+
+  // 记录安全操作日志
+  logSecurityOperation(logData) {
+    return ajax('/api/log-security-operation', 'post', {
+      data: logData
+    })
+  },
+
+  // 获取MAC地址
+  getMacAddress() {
+    return ajax('/api/get-mac-address', 'get')
+  },
+
+  // 打回用户实名认证
+  admin_rejectRealName(uid) {
+    return ajax('/api/admin/reject-real-name', 'post', {
+      data: { uid: uid }
+    })
+  },
+
+  // 检查用户实名状态
+  checkRealNameStatus() {
+    return ajax('/api/user/check-real-name-status', 'get')
   }
 
 }

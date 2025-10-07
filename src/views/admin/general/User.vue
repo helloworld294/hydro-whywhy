@@ -119,7 +119,7 @@
             }}</el-tag>
           </template>
         </vxe-table-column>
-        <vxe-table-column :title="$t('m.Option')" min-width="150">
+        <vxe-table-column :title="$t('m.Option')" min-width="200">
           <template v-slot="{ row }">
             <el-tooltip
               effect="dark"
@@ -131,6 +131,20 @@
                 size="mini"
                 @click.native="openUserDialog(row)"
                 type="primary"
+              >
+              </el-button>
+            </el-tooltip>
+            <el-tooltip
+              effect="dark"
+              :content="$t('m.Reject_Real_Name')"
+              placement="top"
+              v-if="row.realname"
+            >
+              <el-button
+                icon="el-icon-refresh-left"
+                size="mini"
+                @click.native="rejectRealName(row)"
+                type="warning"
               >
               </el-button>
             </el-tooltip>
@@ -163,6 +177,16 @@
         </el-pagination>
       </div>
     </el-card>
+
+    <!-- 安全确认组件 -->
+    <SecurityConfirm
+      :visible="securityConfirmVisible"
+      :operation-description="securityOperationDescription"
+      :operation-type="securityOperationType"
+      :operation-data="securityOperationData"
+      @confirm="handleSecurityConfirm"
+      @cancel="handleSecurityCancel"
+    />
 
     <!-- 导入csv用户数据 -->
     <el-card style="margin-top:20px">
@@ -658,8 +682,13 @@ import papa from 'papaparse'; // csv插件
 import api from '@/common/api';
 import utils from '@/common/utils';
 import myMessage from '@/common/message';
+import SecurityConfirm from '@/components/oj/common/SecurityConfirm.vue';
+
 export default {
   name: 'user',
+  components: {
+    SecurityConfirm
+  },
   data() {
     const CheckTogtFrom = (rule, value, callback) => {
       if (value < this.formGenerateUser.number_from) {
@@ -896,6 +925,13 @@ export default {
           { validator: CheckPwdLength, trigger: 'blur' },
         ],
       },
+      
+      // 安全确认相关
+      securityConfirmVisible: false,
+      securityOperationDescription: '',
+      securityOperationType: '',
+      securityOperationData: {},
+      pendingOperation: null,
     };
   },
   mounted() {
@@ -915,17 +951,59 @@ export default {
     saveUser() {
       this.$refs['updateUser'].validate((valid) => {
         if (valid) {
-          api
-            .admin_editUser(this.selectUser)
-            .then((res) => {
-              // 更新列表
-              myMessage.success(this.$i18n.t('m.Update_Successfully'));
-              this.getUserList(this.currentPage);
-            })
-            .then(() => {
-              this.showUserDialog = false;
-            })
-            .catch(() => {});
+          const originalUser = this.userList.find(user => user.uid === this.selectUser.uid);
+          const originalType = originalUser ? this.getRole(originalUser.roles) : null;
+          const originalStatus = originalUser ? originalUser.status : null;
+          
+          // 检查是否需要安全确认
+          let needsSecurityConfirm = false;
+          let operationType = '';
+          let description = '';
+          
+          // 检查权限更改
+          if (originalType && originalType !== this.selectUser.type) {
+            needsSecurityConfirm = true;
+            operationType = 'user_permission_change';
+            description = `更改用户 ${this.selectUser.username} 的权限从 ${this.getRoleName(originalType)} 到 ${this.getRoleName(this.selectUser.type)}`;
+          }
+          
+          // 检查状态更改（封禁/解除封禁）
+          if (originalStatus !== null && originalStatus !== this.selectUser.status) {
+            if (needsSecurityConfirm) {
+              // 如果已经有其他操作需要确认，合并描述
+              const statusChange = originalStatus === 0 ? '解除封禁' : '封禁';
+              description += `，并${statusChange}用户`;
+              operationType = 'user_multiple_changes';
+            } else {
+              needsSecurityConfirm = true;
+              operationType = 'user_status_change';
+              const statusChange = originalStatus === 0 ? '封禁' : '解除封禁';
+              description = `${statusChange}用户 ${this.selectUser.username}`;
+            }
+          }
+          
+          // 检查密码更改
+          if (this.selectUser.setNewPwd && this.selectUser.password) {
+            if (needsSecurityConfirm) {
+              description += '，并更改密码';
+              operationType = 'user_multiple_changes';
+            } else {
+              needsSecurityConfirm = true;
+              operationType = 'user_password_change';
+              description = `更改用户 ${this.selectUser.username} 的密码`;
+            }
+          }
+          
+          if (needsSecurityConfirm) {
+            this.showSecurityConfirm(
+              operationType,
+              description,
+              { user: this.selectUser, originalType: originalType, originalStatus: originalStatus }
+            );
+          } else {
+            // 直接保存
+            this.performUserUpdate();
+          }
         }
       });
     },
@@ -979,32 +1057,12 @@ export default {
     saveAddUser() {
       this.$refs['addUserForm'].validate((valid) => {
         if (valid) {
-          // 将对象格式转换为数组格式，以匹配CSV导入的格式
-          const userArray = [
-            this.addUserForm.username,
-            this.addUserForm.password,
-            this.addUserForm.email || '',
-            this.addUserForm.realname || '',
-            '', // 性别
-            '', // 昵称
-            '', // 学校
-          ];
-          
-          api
-            .admin_importUsers([userArray])
-            .then((res) => {
-              myMessage.success(this.$i18n.t('m.Add_User_Successfully'));
-              this.showAddUserDialog = false;
-              this.getUserList(this.currentPage);
-            })
-            .catch((error) => {
-              console.error('添加用户失败:', error);
-              if (error.response && error.response.data) {
-                myMessage.error(error.response.data.msg || this.$i18n.t('m.Add_User_Failed'));
-              } else {
-                myMessage.error(this.$i18n.t('m.Add_User_Failed'));
-              }
-            });
+          // 显示安全确认
+          this.showSecurityConfirm(
+            'add_user',
+            `添加新用户: ${this.addUserForm.username}`,
+            { userForm: this.addUserForm }
+          );
         }
       });
     },
@@ -1029,25 +1087,16 @@ export default {
         ids = this.selectedUsers;
       }
       if (ids.length > 0) {
-        this.$confirm(this.$i18n.t('m.Delete_User_Tips'), 'Tips', {
-          confirmButtonText: this.$i18n.t('m.OK'),
-          cancelButtonText: this.$i18n.t('m.Cancel'),
-          type: 'warning',
-        }).then(
-          () => {
-            api
-              .admin_deleteUsers(ids)
-              .then((res) => {
-                myMessage.success(this.$i18n.$t('m.Delete_successfully'));
-                this.selectedUsers = [];
-                this.getUserList(this.currentPage);
-              })
-              .catch(() => {
-                this.selectedUsers = [];
-                this.getUserList(this.currentPage);
-              });
-          },
-          () => {}
+        // 显示安全确认
+        const usernames = ids.map(id => {
+          const user = this.userList.find(u => u.uid === id);
+          return user ? user.username : `ID:${id}`;
+        }).join(', ');
+        
+        this.showSecurityConfirm(
+          'delete_users',
+          `删除用户: ${usernames}`,
+          { userIds: ids, usernames: usernames }
         );
       } else {
         myMessage.warning(
@@ -1129,6 +1178,209 @@ export default {
     },
     handleResetData() {
       this.uploadUsers = [];
+    },
+    
+    // 安全确认相关方法
+    showSecurityConfirm(operationType, description, operationData) {
+      this.securityOperationType = operationType;
+      this.securityOperationDescription = description;
+      this.securityOperationData = operationData;
+      this.securityConfirmVisible = true;
+    },
+    
+    handleSecurityConfirm(data) {
+      this.securityConfirmVisible = false;
+      
+      switch (data.operationType) {
+        case 'user_permission_change':
+        case 'user_status_change':
+        case 'user_password_change':
+        case 'user_multiple_changes':
+          this.performUserUpdate();
+          break;
+        case 'delete_users':
+          this.performUserDelete(data.operationData.userIds);
+          break;
+        case 'add_user':
+          this.performAddUser(data.operationData.userForm);
+          break;
+        case 'reject_real_name':
+          this.performRejectRealName(data.operationData.user);
+          break;
+        default:
+          console.warn('Unknown security operation type:', data.operationType);
+      }
+    },
+    
+    handleSecurityCancel() {
+      this.securityConfirmVisible = false;
+      this.securityOperationType = '';
+      this.securityOperationDescription = '';
+      this.securityOperationData = {};
+    },
+    
+    performUserUpdate() {
+      api
+        .admin_editUser(this.selectUser)
+        .then((res) => {
+          myMessage.success(this.$i18n.t('m.Update_Successfully'));
+          this.getUserList(this.currentPage);
+        })
+        .then(() => {
+          this.showUserDialog = false;
+        })
+        .catch(() => {});
+    },
+    
+    performUserDelete(userIds) {
+      api
+        .admin_deleteUsers(userIds)
+        .then((res) => {
+          myMessage.success(this.$i18n.$t('m.Delete_successfully'));
+          this.selectedUsers = [];
+          this.getUserList(this.currentPage);
+        })
+        .catch(() => {
+          this.selectedUsers = [];
+          this.getUserList(this.currentPage);
+        });
+    },
+    
+    performAddUser(userForm) {
+      // 将对象格式转换为数组格式，以匹配CSV导入的格式
+      const userArray = [
+        userForm.username,
+        userForm.password,
+        userForm.email || '',
+        userForm.realname || '',
+        '', // 性别
+        '', // 昵称
+        '', // 学校
+      ];
+      
+      api
+        .admin_importUsers([userArray])
+        .then((res) => {
+          myMessage.success(this.$i18n.t('m.Add_User_Successfully'));
+          this.showAddUserDialog = false;
+          this.getUserList(this.currentPage);
+        })
+        .catch((error) => {
+          console.error('添加用户失败:', error);
+          if (error.response && error.response.data) {
+            myMessage.error(error.response.data.msg || this.$i18n.t('m.Add_User_Failed'));
+          } else {
+            myMessage.error(this.$i18n.t('m.Add_User_Failed'));
+          }
+        });
+    },
+    
+    // 打回实名
+    rejectRealName(user) {
+      // 显示安全确认
+      this.showSecurityConfirm(
+        'reject_real_name',
+        `打回用户 ${user.username} 的实名认证，要求重新填写真实姓名`,
+        { user: user }
+      );
+    },
+    
+    // 执行打回实名操作
+    performRejectRealName(user) {
+      // 尝试不同的方法：使用空字符串而不是null
+      const updateData = {
+        uid: user.uid,
+        username: user.username,
+        realname: '', // 使用空字符串清空真实姓名
+        email: user.email || '',
+        type: user.type || 1002,
+        status: user.status || 0
+      };
+      
+      console.log('打回实名数据:', updateData);
+      
+      api
+        .admin_editUser(updateData)
+        .then((res) => {
+          console.log('打回实名成功:', res);
+          myMessage.success(this.$i18n.t('m.Reject_Real_Name_Success'));
+          this.getUserList(this.currentPage);
+        })
+        .catch((error) => {
+          console.error('打回实名失败:', error);
+          console.error('错误详情:', error.response?.data);
+          console.error('请求数据:', updateData);
+          
+          // 尝试备用方案：使用更简单的数据结构
+          this.tryAlternativeRejectMethod(user);
+        });
+    },
+    
+    // 备用打回实名方法
+    tryAlternativeRejectMethod(user) {
+      console.log('尝试备用打回实名方法');
+      
+      // 方法1：只传递uid和realname
+      const simpleData = {
+        uid: user.uid,
+        realname: ''
+      };
+      
+      api
+        .admin_editUser(simpleData)
+        .then((res) => {
+          console.log('备用方法成功:', res);
+          myMessage.success(this.$i18n.t('m.Reject_Real_Name_Success'));
+          this.getUserList(this.currentPage);
+        })
+        .catch((error) => {
+          console.error('备用方法也失败:', error);
+          console.error('备用方法错误详情:', error.response?.data);
+          
+          // 方法2：尝试使用changeUserInfo接口（用户自己更新信息的接口）
+          this.tryUserInfoUpdateMethod(user);
+        });
+    },
+    
+    // 方法2：使用用户信息更新接口
+    tryUserInfoUpdateMethod(user) {
+      console.log('尝试使用用户信息更新接口');
+      
+      const userInfoData = {
+        uid: user.uid,
+        realname: ''
+      };
+      
+      api
+        .changeUserInfo(userInfoData)
+        .then((res) => {
+          console.log('用户信息更新成功:', res);
+          myMessage.success(this.$i18n.t('m.Reject_Real_Name_Success'));
+          this.getUserList(this.currentPage);
+        })
+        .catch((error) => {
+          console.error('用户信息更新也失败:', error);
+          console.error('用户信息更新错误详情:', error.response?.data);
+          
+          // 最后显示详细错误信息
+          const errorMsg = error.response?.data?.message || error.message || '未知错误';
+          myMessage.error(`打回实名失败: ${errorMsg}`);
+        });
+    },
+    
+    getRoleName(roleId) {
+      const roleNames = {
+        1000: '超级管理员',
+        1001: '普通管理员',
+        1002: '用户(默认)',
+        1003: '用户(禁止提交)',
+        1004: '用户(禁止发讨论)',
+        1005: '用户(禁言)',
+        1006: '用户(禁止提交&禁止发讨论)',
+        1007: '用户(禁止提交&禁言)',
+        1008: '题目管理员'
+      };
+      return roleNames[roleId] || '未知角色';
     },
   },
   computed: {

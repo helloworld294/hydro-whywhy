@@ -37,10 +37,38 @@ const router = new VueRouter({
 
 
 // 路由判断登录 根据路由配置文件的参数(全局身份验证token)
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   NProgress.start()
+  
+  // 检查实名认证状态（对于已登录用户，除了实名认证页面本身和管理端）
+  const token = localStorage.getItem('token') || ''
+  if (token && to.name !== 'RealNameAuth' && to.path.split('/')[1] !== 'admin') {
+    try {
+      const userInfo = store.getters.userInfo
+      // 检查用户信息是否存在
+      if (userInfo && userInfo.uid) {
+        // 只检查真实姓名是否完整
+        const hasRealName = userInfo.realname && userInfo.realname.trim() !== ''
+        
+        // 如果真实姓名不完整，跳转到实名认证页面
+        if (!hasRealName) {
+          console.log('用户未实名，跳转到实名认证页面', {
+            hasRealName,
+            realname: userInfo.realname
+          })
+          next({
+            path: '/real-name-auth'
+          })
+          return
+        }
+      }
+    } catch (error) {
+      console.error('检查实名状态失败:', error)
+      // 如果检查失败，继续正常流程
+    }
+  }
+  
   if (to.matched.some(record => record.meta.requireAuth)) { // 判断该路由是否需要登录权限
-    const token = localStorage.getItem('token') || ''
     const isSuperAdmin = store.getters.isSuperAdmin
     const isAmdin = store.getters.isAdminRole
     if (token) { // 判断当前的token是否存在 ； 登录存入的token

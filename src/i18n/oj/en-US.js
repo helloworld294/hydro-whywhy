@@ -48,6 +48,41 @@ export const m = {
   Login_Password: 'Password',
   Login_Btn: 'Login',
   Slide_Verify: 'Please slide right to verify',
+
+  // Security confirmation related
+  Security_Confirm: 'Security Confirmation',
+  Security_Operation_Warning: 'Security Operation Warning',
+  Enter_Security_Password: 'Please enter security confirmation password',
+  Please_Enter_Password: 'Please enter password',
+  Incorrect_Security_Password: 'Incorrect security password',
+  Security_Operation_Confirmed: 'Security operation confirmed',
+  Security_Operation_Failed: 'Security operation failed',
+  Cancel: 'Cancel',
+  Confirm: 'Confirm',
+
+  // Real name authentication related
+  Real_Name_Authentication: 'Real Name Authentication',
+  Real_Name_Required: 'Real name is required',
+  Real_Name_Required_Description: 'Please complete real name authentication for platform security',
+  Please_Enter_Real_Name: 'Please enter real name',
+  Please_Enter_Email: 'Please enter email',
+  Please_Enter_Phone: 'Please enter phone number',
+  Please_Enter_Phone_China: 'Please enter 11-digit Chinese phone number',
+  Phone_Required: 'Phone number is required',
+  Phone_Format_Error_China: 'Please enter correct Chinese phone number format (starts with 1, 11 digits)',
+  Phone_Format_Tip: 'Only supports Chinese mainland phone numbers, format: 1xxxxxxxxxx',
+  Please_Enter_School: 'Please enter school',
+  Please_Enter_Student_ID: 'Please enter student ID',
+  Real_Name_Length_Error: 'Real name length should be between 2-20 characters',
+  Real_Name_Format_Error: 'Real name can only contain Chinese, English and spaces',
+  Email_Format_Error: 'Invalid email format',
+  Phone_Format_Error: 'Invalid phone number format',
+  Submit_Real_Name: 'Submit Real Name',
+  Real_Name_Submit_Success: 'Real name submitted successfully',
+  Real_Name_Submit_Failed: 'Failed to submit real name',
+  Reject_Real_Name: 'Reject Real Name',
+  Reject_Real_Name_Success: 'Real name rejected successfully',
+  Reject_Real_Name_Failed: 'Failed to reject real name',
   Slide_Verify_Success: 'Success',
   Login_No_Account: 'No account? Register now!',
   Login_Forget_Password: 'Forget Password',
@@ -441,6 +476,7 @@ export const m = {
   Contains_Submission_After_Contest:'Contains Submission After Contest',
   Virtual_Participation:'Virtual Participation',
 
+
   // /views/oj/contest/children/ACMContestRank.vue
   Contest_Rank: 'Contest Rank',
   Contest_After_Rank: 'After Contest Rank',
@@ -769,5 +805,15 @@ export const m = {
   // Use public problem bank
   Use_Public_Problem: 'Use Public Problem Bank',
   Add_From_Public_Problem: 'Add From Public Problem Bank',
-  Group_Add_From_Public_Problem_Tips: 'Select problems from the public problem bank to add to the group problem bank'
+  Group_Add_From_Public_Problem_Tips: 'Select problems from the public problem bank to add to the group problem bank',
+
+  // File upload related
+  Upload_file: 'Upload File',
+  File_Upload_Success: 'File uploaded successfully!',
+  File_Upload_Failed: 'File upload failed, please try again',
+  File_Uploading: 'Uploading file...',
+  Unsupported_File_Type: 'Unsupported file type',
+  File_Size_Exceeded: 'File size exceeds limit',
+  Supported_File_Types: 'Supported file types',
+  Max_File_Size: 'Maximum file size'
 }

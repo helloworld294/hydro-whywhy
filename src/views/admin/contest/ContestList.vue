@@ -172,6 +172,17 @@
         </el-pagination>
       </div>
     </el-card>
+    
+    <!-- 安全确认组件 -->
+    <SecurityConfirm
+      :visible="securityConfirmVisible"
+      :operation-description="securityOperationDescription"
+      :operation-type="securityOperationType"
+      :operation-data="securityOperationData"
+      @confirm="handleSecurityConfirm"
+      @cancel="handleSecurityCancel"
+    />
+    
     <el-dialog
       :title="$t('m.Download_Contest_AC_Submission')"
       width="320px"
@@ -203,8 +214,13 @@ import {
 } from '@/common/constants';
 import { mapGetters } from 'vuex';
 import myMessage from '@/common/message';
+import SecurityConfirm from '@/components/oj/common/SecurityConfirm.vue';
+
 export default {
   name: 'ContestList',
+  components: {
+    SecurityConfirm
+  },
   data() {
     return {
       pageSize: 10,
@@ -218,6 +234,12 @@ export default {
       currentId: 1,
       downloadDialogVisible: false,
       CONTEST_TYPE_REVERSE: {},
+      
+      // 安全确认相关
+      securityConfirmVisible: false,
+      securityOperationDescription: '',
+      securityOperationType: '',
+      securityOperationData: {},
     };
   },
   mounted() {
@@ -280,16 +302,16 @@ export default {
       });
     },
     deleteContest(contestId) {
-      this.$confirm(this.$i18n.t('m.Delete_Contest_Tips'), 'Tips', {
-        confirmButtonText: this.$i18n.t('m.OK'),
-        cancelButtonText: this.$i18n.t('m.Cancel'),
-        type: 'warning',
-      }).then(() => {
-        api.admin_deleteContest(contestId).then((res) => {
-          myMessage.success(this.$i18n.t('m.Delete_successfully'));
-          this.currentChange(1);
-        });
-      });
+      // 获取比赛信息
+      const contest = this.contestList.find(c => c.id === contestId);
+      const contestTitle = contest ? contest.title : `ID:${contestId}`;
+      
+      // 显示安全确认
+      this.showSecurityConfirm(
+        'delete_contest',
+        `删除比赛: ${contestTitle}`,
+        { contestId: contestId, contestTitle: contestTitle }
+      );
     },
     changeContestVisible(contestId, visible, uid) {
       api.admin_changeContestVisible(contestId, visible, uid).then((res) => {
@@ -298,6 +320,40 @@ export default {
     },
     filterByKeyword() {
       this.currentChange(1);
+    },
+    
+    // 安全确认相关方法
+    showSecurityConfirm(operationType, description, operationData) {
+      this.securityOperationType = operationType;
+      this.securityOperationDescription = description;
+      this.securityOperationData = operationData;
+      this.securityConfirmVisible = true;
+    },
+    
+    handleSecurityConfirm(data) {
+      this.securityConfirmVisible = false;
+      
+      switch (data.operationType) {
+        case 'delete_contest':
+          this.performContestDelete(data.operationData.contestId);
+          break;
+        default:
+          console.warn('Unknown security operation type:', data.operationType);
+      }
+    },
+    
+    handleSecurityCancel() {
+      this.securityConfirmVisible = false;
+      this.securityOperationType = '';
+      this.securityOperationDescription = '';
+      this.securityOperationData = {};
+    },
+    
+    performContestDelete(contestId) {
+      api.admin_deleteContest(contestId).then((res) => {
+        myMessage.success(this.$i18n.t('m.Delete_successfully'));
+        this.currentChange(1);
+      });
     },
   },
 };

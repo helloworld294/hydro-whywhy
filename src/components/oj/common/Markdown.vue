@@ -30,6 +30,7 @@ export default {
   data(){
     return{
         pdfLogo: require('@/assets/pdf-logo.svg'),
+        videoLogo: require('@/assets/video-logo.svg'),
     }
   },
   computed: {
@@ -71,6 +72,27 @@ export default {
         </object>   
         `
       );
+      
+      // 获取视频链接生成预览模块 (.mp4, .ts)
+      res = res.replace(
+        /<a.*?href="(.*?\.(mp4|ts))".*?>(.*?)<\/a>/gi,
+        `<p></p>
+        <file-card>
+            <div>
+                <img class="video-svg" src="${this.videoLogo}">
+            </div>
+            <div>
+                <h5 class="filename">$3</h5>
+                <p><a href="$1" target="_blank">Download</a></p>
+            </div>
+        </file-card>
+        <video controls width="100%" style="max-height: 600px; margin: 10px 0;">
+            <source src="$1" type="video/mp4">
+            <source src="$1" type="video/mp2t">
+            Your browser does not support the video tag. Please download the video: <a href="$1" target="_blank">Download Video</a>.
+        </video>
+        `
+      );
       return res;
     },
   },
@@ -78,6 +100,11 @@ export default {
 </script>
 <style>
 file-card .pdf-svg {
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+file-card .video-svg {
   padding: 0 !important;
   margin: 0 !important;
   box-shadow: none !important;

@@ -123,6 +123,7 @@
                   <span>{{ $t('m.Contains_Submission_After_Contest') }}</span>
                   <el-switch v-model="isContainsAfterContestJudge"></el-switch>
                 </p>
+
                 </div>
               </el-popover>
           </div>
@@ -174,6 +175,8 @@
               :content="contest.description">
             </Markdown>
           </el-card>
+          
+
         </el-tab-pane>
 
         <el-tab-pane
@@ -370,6 +373,7 @@ export default {
       RULE_TYPE: {},
       btnLoading: false,
       contestPassword: '',
+
     };
   },
   created() {
@@ -385,6 +389,7 @@ export default {
     this.CONTEST_STATUS = Object.assign({}, CONTEST_STATUS);
     this.CONTEST_STATUS_REVERSE = Object.assign({}, CONTEST_STATUS_REVERSE);
     this.RULE_TYPE = Object.assign({}, RULE_TYPE);
+    
     this.$store.dispatch('getContest').then((res) => {
       this.changeDomTitle({ title: res.data.data.title });
       let data = res.data.data;
@@ -437,6 +442,7 @@ export default {
   },
   methods: {
     ...mapActions(['changeDomTitle']),
+
     formatTooltip(val) {
       if (this.contest.status == -1) {
         // 还未开始
@@ -478,6 +484,7 @@ export default {
         },
       })
     },
+
   },
   computed: {
     ...mapState({
@@ -542,6 +549,7 @@ export default {
       // 检查是否已经通过密码验证 - 如果密码表单不可见，说明已经验证通过
       return !this.passwordFormVisible;
     },
+
   },
   watch: {
     $route(newVal) {
@@ -567,6 +575,8 @@ export default {
   font-size: 1.5rem !important;
   font-weight: 500;
 }
+
+
 @media screen and (min-width: 768px) {
   .contest-time .left {
     text-align: left;

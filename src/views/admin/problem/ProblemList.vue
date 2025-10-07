@@ -346,6 +346,16 @@
         </el-form-item>
       </el-form>
     </el-dialog>
+    
+    <!-- 安全确认组件 -->
+    <SecurityConfirm
+      :visible="securityConfirmVisible"
+      :operation-description="securityOperationDescription"
+      :operation-type="securityOperationType"
+      :operation-data="securityOperationData"
+      @confirm="handleSecurityConfirm"
+      @cancel="handleSecurityCancel"
+    />
   </div>
 </template>
 
@@ -356,10 +366,13 @@ import AddPublicProblem from '@/components/admin/AddPublicProblem.vue';
 import myMessage from '@/common/message';
 import { REMOTE_OJ } from '@/common/constants';
 import { mapGetters } from 'vuex';
+import SecurityConfirm from '@/components/oj/common/SecurityConfirm.vue';
+
 export default {
   name: 'ProblemList',
   components: {
     AddPublicProblem,
+    SecurityConfirm,
   },
   data() {
     return {
@@ -398,6 +411,12 @@ export default {
         '#1e90ff',
         '#c71585',
       ],
+      
+      // 安全确认相关
+      securityConfirmVisible: false,
+      securityOperationDescription: '',
+      securityOperationType: '',
+      securityOperationData: {},
     };
   },
   mounted() {
@@ -535,22 +554,15 @@ export default {
     },
 
     deleteProblem(id) {
-      this.$confirm(this.$i18n.t('m.Delete_Problem_Tips'), 'Tips', {
-        type: 'warning',
-      }).then(
-        () => {
-          let funcName =
-            this.routeName === 'admin-problem-list'
-              ? 'admin_deleteProblem'
-              : 'admin_deleteContestProblem';
-          api[funcName](id, null)
-            .then((res) => {
-              myMessage.success(this.$i18n.t('m.Delete_successfully'));
-              this.getProblemList();
-            })
-            .catch(() => {});
-        },
-        () => {}
+      // 获取题目信息
+      const problem = this.problemList.find(p => p.id === id);
+      const problemTitle = problem ? problem.title : `ID:${id}`;
+      
+      // 显示安全确认
+      this.showSecurityConfirm(
+        'delete_problem',
+        `删除题目: ${problemTitle}`,
+        { problemId: id, problemTitle: problemTitle }
       );
     },
     removeProblem(pid) {
@@ -644,6 +656,46 @@ export default {
       api.admin_setContestProblemInfo(data).then((res) => {
         myMessage.success(this.$i18n.t('m.Update_Balloon_Color_Successfully'));
       });
+    },
+    
+    // 安全确认相关方法
+    showSecurityConfirm(operationType, description, operationData) {
+      this.securityOperationType = operationType;
+      this.securityOperationDescription = description;
+      this.securityOperationData = operationData;
+      this.securityConfirmVisible = true;
+    },
+    
+    handleSecurityConfirm(data) {
+      this.securityConfirmVisible = false;
+      
+      switch (data.operationType) {
+        case 'delete_problem':
+          this.performProblemDelete(data.operationData.problemId);
+          break;
+        default:
+          console.warn('Unknown security operation type:', data.operationType);
+      }
+    },
+    
+    handleSecurityCancel() {
+      this.securityConfirmVisible = false;
+      this.securityOperationType = '';
+      this.securityOperationDescription = '';
+      this.securityOperationData = {};
+    },
+    
+    performProblemDelete(problemId) {
+      let funcName =
+        this.routeName === 'admin-problem-list'
+          ? 'admin_deleteProblem'
+          : 'admin_deleteContestProblem';
+      api[funcName](problemId, null)
+        .then((res) => {
+          myMessage.success(this.$i18n.t('m.Delete_successfully'));
+          this.getProblemList();
+        })
+        .catch(() => {});
     },
   },
   watch: {

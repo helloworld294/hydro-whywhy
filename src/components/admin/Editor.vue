@@ -29,6 +29,7 @@
       ref="uploadInput"
       style="display: none"
       type="file"
+      accept=".pdf,.mp4,.ts,.avi,.mov,.wmv,.flv,.webm,.mkv"
       @change="uploadFileChange"
     />
   </div>
@@ -135,6 +136,23 @@ export default {
     uploadFileChange(e) {
       // 获取到input选取的文件
       const file = e.target.files[0];
+      
+      // 验证文件类型
+      const allowedTypes = ['.pdf', '.mp4', '.ts', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv'];
+      const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+      
+      if (!allowedTypes.includes(fileExtension)) {
+        this.$message.error(`${this.$i18n.t('m.Unsupported_File_Type')}: ${fileExtension}。${this.$i18n.t('m.Supported_File_Types')}: ${allowedTypes.join(', ')}`);
+        return;
+      }
+      
+      // 验证文件大小 (限制为100MB)
+      const maxSize = 100 * 1024 * 1024; // 100MB
+      if (file.size > maxSize) {
+        this.$message.error(`${this.$i18n.t('m.File_Size_Exceeded')} (${this.$i18n.t('m.Max_File_Size')} 100MB)`);
+        return;
+      }
+      
       // 创建form格式的数据，将文件放入form中
       const formdata = new FormData();
       formdata.append('file', file);
@@ -142,12 +160,22 @@ export default {
       if (gid != null && gid != undefined) {
         formdata.append('gid', gid);
       }
+      
+      // 显示上传进度
+      const loading = this.$loading({
+        lock: true,
+        text: this.$i18n.t('m.File_Uploading'),
+        spinner: 'el-icon-loading',
+        background: 'rgba(0, 0, 0, 0.7)'
+      });
+      
       this.$http({
         url: '/api/file/upload-md-file',
         method: 'post',
         data: formdata,
         headers: { 'Content-Type': 'multipart/form-data' },
       }).then((res) => {
+        loading.close();
         // 这里获取到的是mavon编辑器实例，上面挂载着很多方法
         const $vm = this.$refs.md;
         // 将文件名与文件路径插入当前光标位置，这是mavon-editor 内置的方法
@@ -156,6 +184,11 @@ export default {
           subfix: '',
           str: '',
         });
+        this.$message.success(this.$i18n.t('m.File_Upload_Success'));
+      }).catch((error) => {
+        loading.close();
+        console.error('文件上传失败:', error);
+        this.$message.error(this.$i18n.t('m.File_Upload_Failed'));
       });
     },
   },

@@ -165,11 +165,22 @@
           :field="problem.problemId"
         >
           <template v-slot:header>
-            <span><a
-                @click="getTrainingProblemById(problem.problemId)"
-                class="emphasis"
-                style="color:#495060;"
-              >{{ problem.problemId }}</a></span>
+            <div style="text-align: center;">
+              <div style="font-weight: bold; margin-bottom: 2px;">
+                <a
+                  @click="getTrainingProblemById(problem.problemId)"
+                  class="emphasis"
+                  style="color:#495060; font-size: 12px;"
+                >{{ problem.problemId }}</a>
+              </div>
+              <div style="font-size: 10px; color: #999;">
+                <a
+                  @click="getTrainingProblemById(problem.problemId)"
+                  class="emphasis"
+                  style="color:#999;"
+                >{{ problem.title || '题目' + problem.problemId }}</a>
+              </div>
+            </div>
           </template>
           <template v-slot="{ row }">
             <template v-if="row.submissionInfo[problem.problemId]">

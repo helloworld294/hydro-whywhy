@@ -48,6 +48,41 @@ export const m = {
   Login_Password: '密码',
   Login_Btn: '登录',
   Slide_Verify: '请向右滑动验证',
+
+  // 安全确认相关
+  Security_Confirm: '安全确认',
+  Security_Operation_Warning: '安全操作警告',
+  Enter_Security_Password: '请输入安全确认密码',
+  Please_Enter_Password: '请输入密码',
+  Incorrect_Security_Password: '安全密码错误',
+  Security_Operation_Confirmed: '安全操作已确认',
+  Security_Operation_Failed: '安全操作失败',
+  Cancel: '取消',
+  Confirm: '确认',
+
+  // 实名认证相关
+  Real_Name_Authentication: '实名认证',
+  Real_Name_Required: '真实姓名不能为空',
+  Real_Name_Required_Description: '为了保障平台安全，请完成实名认证',
+  Please_Enter_Real_Name: '请输入真实姓名',
+  Please_Enter_Email: '请输入邮箱',
+  Please_Enter_Phone: '请输入手机号',
+  Please_Enter_Phone_China: '请输入11位中国手机号',
+  Phone_Required: '手机号码为必填项',
+  Phone_Format_Error_China: '请输入正确的中国手机号码格式（1开头，11位数字）',
+  Phone_Format_Tip: '仅支持中国大陆手机号码，格式：1xxxxxxxxxx',
+  Please_Enter_School: '请输入学校',
+  Please_Enter_Student_ID: '请输入学号',
+  Real_Name_Length_Error: '真实姓名长度应在2-20个字符之间',
+  Real_Name_Format_Error: '真实姓名只能包含中文、英文和空格',
+  Email_Format_Error: '邮箱格式不正确',
+  Phone_Format_Error: '手机号格式不正确',
+  Submit_Real_Name: '提交实名认证',
+  Real_Name_Submit_Success: '实名认证提交成功',
+  Real_Name_Submit_Failed: '实名认证提交失败',
+  Reject_Real_Name: '打回实名',
+  Reject_Real_Name_Success: '打回实名成功',
+  Reject_Real_Name_Failed: '打回实名失败',
   Slide_Verify_Success: '验证成功',
   Login_No_Account: '没有账号？立即注册!',
   Login_Forget_Password: '忘记密码',
@@ -444,6 +479,7 @@ export const m = {
   Contains_Submission_After_Contest:'包含赛后的提交',
   Virtual_Participation:'虚拟参赛',
 
+
   // /views/oj/contest/children/ACMContestRank.vue
   Contest_Rank: '比赛排名',
   Contest_After_Rank: '赛后榜单',
@@ -772,5 +808,15 @@ export const m = {
   // 使用公共题库题目
   Use_Public_Problem: '使用公共题库题目',
   Add_From_Public_Problem: '从公共题库添加题目',
-  Group_Add_From_Public_Problem_Tips: '从公共题库中选择题目添加到团队题库中'
+  Group_Add_From_Public_Problem_Tips: '从公共题库中选择题目添加到团队题库中',
+
+  // 文件上传相关
+  Upload_file: '上传文件',
+  File_Upload_Success: '文件上传成功！',
+  File_Upload_Failed: '文件上传失败，请重试',
+  File_Uploading: '文件上传中...',
+  Unsupported_File_Type: '不支持的文件类型',
+  File_Size_Exceeded: '文件大小超过限制',
+  Supported_File_Types: '支持的文件类型',
+  Max_File_Size: '最大文件大小'
 }

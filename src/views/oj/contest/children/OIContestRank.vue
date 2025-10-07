@@ -343,31 +343,37 @@
                 ></path>
               </svg>
             </span>
-            <span>
-              <a
-                @click="getContestProblemById(problem.displayId)"
-                class="emphasis"
-                style="color:#495060;"
-              >
-                {{ problem.displayId }}
-              </a>
-            </span>
-            <br />
-            <span>
-              <el-tooltip
-                effect="dark"
-                placement="top"
-              >
-                <div slot="content">
-                  {{ problem.displayId + '. ' + problem.displayTitle }}
-                  <br />
-                  {{ 'Accepted: ' + problem.ac }}
-                  <br />
-                  {{ 'Rejected: ' + (problem.total - problem.ac) }}
-                </div>
-                <span>({{ problem.ac }}/{{ problem.total }}) </span>
-              </el-tooltip>
-            </span>
+            <div style="text-align: center;">
+              <div style="font-weight: bold; margin-bottom: 2px;">
+                <a
+                  @click="getContestProblemById(problem.displayId)"
+                  class="emphasis"
+                  style="color:#495060; font-size: 12px;"
+                >{{ problem.displayId }}</a>
+              </div>
+              <div style="font-size: 10px; color: #999;">
+                <a
+                  @click="getContestProblemById(problem.displayId)"
+                  class="emphasis"
+                  style="color:#999;"
+                >{{ problem.displayTitle || '题目' + problem.displayId }}</a>
+              </div>
+              <div style="font-size: 9px; color: #666; margin-top: 2px;">
+                <el-tooltip
+                  effect="dark"
+                  placement="top"
+                >
+                  <div slot="content">
+                    {{ problem.displayId + '. ' + problem.displayTitle }}
+                    <br />
+                    {{ 'Accepted: ' + problem.ac }}
+                    <br />
+                    {{ 'Rejected: ' + (problem.total - problem.ac) }}
+                  </div>
+                  <span>({{ problem.ac }}/{{ problem.total }}) </span>
+                </el-tooltip>
+              </div>
+            </div>
           </template>
           <template v-slot="{ row }">
             <div
