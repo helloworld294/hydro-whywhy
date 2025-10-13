@@ -6,6 +6,9 @@
         class="rank-title"
       >
         <span class="panel-title">{{ $t('m.Record_List') }}</span>
+        <div style="font-size: 12px; color: #999; margin-top: 5px;">
+          训练ID: {{ trainingID }} | 当前页数据: {{ dataRank.length }} | 总数据: {{ total }} | 页码: {{ page }}/{{ Math.ceil(total / limit) }}
+        </div>
       </div>
       <div class="training-rank-search">
         <el-input
@@ -20,6 +23,15 @@
             @click="getTrainingRankData"
           ></el-button>
         </el-input>
+        <el-button
+          type="primary"
+          icon="el-icon-refresh"
+          @click="refreshData"
+          :loading="loading"
+          style="margin-left: 10px;"
+        >
+          刷新
+        </el-button>
       </div>
       <vxe-table
         round
@@ -33,6 +45,7 @@
         :seq-config="{ startIndex: (this.page - 1) * this.limit }"
         @cell-click="getUserProblemSubmission"
         :loading="loading"
+        empty-text="暂无训练记录"
       >
         <vxe-table-column
           field="rank"
@@ -274,20 +287,43 @@ export default {
     ...mapActions(["getTrainingProblemList"]),
 
     getTrainingRankData() {
-      let data = {
+      // 检查训练访问权限
+      if (this.trainingMenuDisabled) {
+        console.log('训练榜单被禁用，无法加载数据');
+        this.$message.warning('您没有权限查看此训练的榜单');
+        return;
+      }
+      
+      let params = {
         tid: this.trainingID,
         limit: this.limit,
         currentPage: this.page,
         keyword: this.keyword
       };
+      console.log('获取训练榜单数据:', params);
       this.loading = true;
-      api.getTrainingRank(data).then(
+      
+      api.getTrainingRank(params).then(
         (res) => {
-          this.total = res.data.data.total;
-          this.applyToTable(res.data.data.records);
+          console.log('训练榜单API响应:', res);
+          if (res.data && res.data.data) {
+            console.log('API返回的数据结构:', res.data.data);
+            console.log('API返回的total值:', res.data.data.total);
+            console.log('API返回的records:', res.data.data.records);
+            console.log('records数组长度:', res.data.data.records ? res.data.data.records.length : 0);
+            
+            this.total = res.data.data.total || 0;
+            this.applyToTable(res.data.data.records || []);
+            console.log('训练榜单数据加载成功，总数:', this.total, '当前页数据条数:', this.dataRank.length);
+          } else {
+            console.warn('训练榜单数据格式异常:', res);
+            this.dataRank = [];
+            this.total = 0;
+          }
           this.loading = false;
         },
         (err) => {
+          console.error('获取训练榜单失败:', err);
           this.loading = false;
         }
       );
@@ -369,22 +405,55 @@ export default {
       }
     },
     applyToTable(dataRank) {
+      console.log('处理训练榜单数据:', dataRank);
+      console.log('输入数据类型:', typeof dataRank);
+      console.log('输入数据是否为数组:', Array.isArray(dataRank));
+      console.log('输入数据长度:', dataRank ? dataRank.length : 'null/undefined');
+      
+      if (!Array.isArray(dataRank)) {
+        console.warn('训练榜单数据不是数组:', dataRank);
+        this.dataRank = [];
+        return;
+      }
+      
       dataRank.forEach((rank, i) => {
         if (dataRank[i].gender == "female") {
           dataRank[i].userCellClassName = "bg-female";
         }
+        // 确保submissionInfo存在
+        if (!dataRank[i].submissionInfo) {
+          dataRank[i].submissionInfo = {};
+        }
       });
       this.dataRank = dataRank;
+      console.log('训练榜单数据处理完成，最终数据条数:', this.dataRank.length);
+      console.log('最终数据:', this.dataRank);
+    },
+    refreshData() {
+      console.log('手动刷新训练榜单数据');
+      this.page = 1;
+      this.keyword = '';
+      this.getTrainingRankData();
     },
     parseTotalTime(totalTime) {
       return time.secondFormat(totalTime);
     },
   },
+  watch: {
+    trainingMenuDisabled(newVal) {
+      console.log('训练榜单权限状态变化:', newVal);
+      // 当权限状态改变时，重新加载数据
+      if (!newVal && this.trainingID) {
+        console.log('权限已获得，重新加载训练榜单数据');
+        this.getTrainingRankData();
+      }
+    }
+  },
   computed: {
     ...mapState({
       trainingProblemList: (state) => state.training.trainingProblemList,
     }),
-    ...mapGetters(["isTrainingAdmin", "userInfo"]),
+    ...mapGetters(["isTrainingAdmin", "userInfo", "trainingMenuDisabled"]),
     training() {
       return this.$store.state.training.training;
     },

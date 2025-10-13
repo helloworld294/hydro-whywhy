@@ -781,6 +781,13 @@ export const m = {
   Back_To_Admin_Training_List:'返回课程管理列表',
   Back_To_Training_List:'返回课程列表',
   Back_Admin_Training_Problem_List:'返回课程题目管理列表',
+  Copy_From_Main_Training: '从主课程复制',
+  Copy_Selected_Trainings: '复制选中课程',
+  Selected_Trainings: '已选择课程',
+  Clear_Selection: '清空选择',
+  Please_Select_Trainings: '请选择要复制的课程',
+  Copy_Trainings_Successfully: '复制课程成功',
+  Copy_Trainings_Failed: '复制课程失败',
   
   // /views/oj/group/GroupContestList.vue
   Back_To_Admin_Contest_List:'返回比赛管理列表',

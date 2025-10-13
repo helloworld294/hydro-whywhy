@@ -755,6 +755,13 @@ export const m = {
   Back_To_Admin_Training_List:'Back to Admin  List',
   Back_To_Training_List:'Back To  List',
   Back_Admin_Training_Problem_List:'Back Admin Course Problem List',
+  Copy_From_Main_Training: 'Copy From Main Training',
+  Copy_Selected_Trainings: 'Copy Selected Trainings',
+  Selected_Trainings: 'Selected Trainings',
+  Clear_Selection: 'Clear Selection',
+  Please_Select_Trainings: 'Please select trainings to copy',
+  Copy_Trainings_Successfully: 'Copy trainings successfully',
+  Copy_Trainings_Failed: 'Copy trainings failed',
 
   // /views/oj/group/GroupContestList.vue
   Back_To_Admin_Contest_List:'Back to Admin Contest List',

@@ -28,6 +28,9 @@ const getters = {
      // 私有训练需要通过验证密码方可查看比赛
       return !state.intoAccess
     }
+    
+    // 公共训练默认不禁用
+    return false
   },
   isPrivateTraining: (state, getters) => {
     return state.training.auth === TRAINING_TYPE.Private.name

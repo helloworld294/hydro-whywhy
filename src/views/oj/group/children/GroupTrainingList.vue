@@ -21,6 +21,14 @@
             >{{ createPage ? $t('m.Back_To_Admin_Training_List') : $t('m.Create') }}</el-button
           >
           <el-button
+            v-if="!editPage && !createPage"
+            type="success"
+            size="small"
+            @click="handleCopyFromMain"
+            icon="el-icon-copy-document"
+            >{{ $t('m.Copy_From_Main_Training') }}</el-button
+          >
+          <el-button
             v-if="editPage && adminPage"
             type="warning"
             size="small"
@@ -254,6 +262,19 @@
         @handleGroupPage="handleGroupPage"
       ></AddGroupProblem>
     </el-dialog>
+    <el-dialog
+      :title="$t('m.Copy_From_Main_Training')"
+      width="90%"
+      :visible.sync="copyFromMainPage"
+      :close-on-click-modal="false"
+    >
+      <CopyTrainingFromMain
+        v-if="copyFromMainPage"
+        :groupId="$route.params.groupID"
+        @copySuccess="handleCopySuccess"
+        ref="copyTrainingFromMain"
+      ></CopyTrainingFromMain>
+    </el-dialog>
   </el-card>
 </template>
 
@@ -266,6 +287,7 @@ import Training from '@/components/oj/group/Training';
 import TrainingProblemList from '@/components/oj/group/TrainingProblemList';
 import AddPublicProblem from '@/components/oj/group/AddPublicProblem.vue';
 import AddGroupProblem from '@/components/oj/group/AddGroupProblem.vue';
+import CopyTrainingFromMain from '@/components/oj/group/CopyTrainingFromMain.vue';
 import api from '@/common/api';
 export default {
   name: 'GroupTrainingList',
@@ -276,6 +298,7 @@ export default {
     TrainingProblemList,
     AddPublicProblem,
     AddGroupProblem,
+    CopyTrainingFromMain,
   },
   data() {
     return {
@@ -291,6 +314,7 @@ export default {
       problemPage: false,
       publicPage: false,
       groupPage: false,
+      copyFromMainPage: false,
       editProblemPage: false,
       trainingId: null,
     };
@@ -364,6 +388,13 @@ export default {
     handleEditProblemPage() {
       this.editProblemPage = !this.editProblemPage;
       this.$refs.trainingProblemList.editPage = this.editProblemPage;
+    },
+    handleCopyFromMain() {
+      this.copyFromMainPage = true;
+    },
+    handleCopySuccess() {
+      this.copyFromMainPage = false;
+      this.init(); // 刷新训练列表
     },
     getPassingRate(ac, total) {
       if (!total) {
