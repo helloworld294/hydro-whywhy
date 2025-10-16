@@ -328,12 +328,18 @@ export default {
     async copySingleTraining(sourceTraining) {
       try {
         // 1. 获取主训练的详细信息
+        console.log(`正在获取训练课程 ${sourceTraining.id} 的详细信息...`);
         const trainingDetailRes = await api.getTraining(sourceTraining.id);
+        console.log('训练详情响应:', trainingDetailRes);
         const trainingDetail = trainingDetailRes.data.data;
+        console.log('训练详情数据:', trainingDetail);
         
         // 2. 获取主训练的题目列表
+        console.log(`正在获取训练课程 ${sourceTraining.id} 的题目列表...`);
         const problemListRes = await api.getTrainingProblemList(sourceTraining.id);
+        console.log('题目列表响应:', problemListRes);
         const problemList = problemListRes.data.data;
+        console.log('题目列表数据:', problemList);
         
         // 3. 创建新的团队训练课程
         console.log('团队ID:', this.groupId);
@@ -348,40 +354,188 @@ export default {
           throw new Error('用户信息不能为空');
         }
         
+        // 确保分类ID正确
+        let categoryId = trainingDetail.trainingCategory?.id || sourceTraining.categoryId;
+        console.log('原始分类ID:', categoryId);
+        console.log('训练详情中的分类:', trainingDetail.trainingCategory);
+        console.log('源训练中的分类ID:', sourceTraining.categoryId);
+        console.log('训练详情中的分类名称:', trainingDetail.categoryName);
+        
+        // 如果分类ID仍然为空，尝试从训练详情中获取
+        if (!categoryId && trainingDetail.trainingCategoryId) {
+          categoryId = trainingDetail.trainingCategoryId;
+          console.log('从trainingCategoryId获取分类ID:', categoryId);
+        }
+        
+        // 如果还是没有分类ID，但有分类名称，尝试从分类列表中查找
+        if (!categoryId && trainingDetail.categoryName) {
+          console.log('尝试根据分类名称查找分类ID:', trainingDetail.categoryName);
+          try {
+            const categoryListRes = await api.getTrainingCategoryList();
+            const categoryList = categoryListRes.data.data;
+            console.log('分类列表:', categoryList);
+            
+            const matchedCategory = categoryList.find(cat => cat.name === trainingDetail.categoryName);
+            if (matchedCategory) {
+              categoryId = matchedCategory.id;
+              console.log('找到匹配的分类ID:', categoryId);
+            }
+          } catch (error) {
+            console.error('获取分类列表失败:', error);
+          }
+        }
+        
+        // 如果还是没有分类ID，尝试使用第一个可用的分类作为默认值
+        if (!categoryId) {
+          console.warn('无法获取分类ID，尝试使用默认分类');
+          try {
+            const categoryListRes = await api.getTrainingCategoryList();
+            const categoryList = categoryListRes.data.data;
+            if (categoryList && categoryList.length > 0) {
+              categoryId = categoryList[0].id;
+              console.log('使用默认分类ID:', categoryId, '分类名称:', categoryList[0].name);
+            } else {
+              console.error('没有可用的分类，无法创建训练课程');
+              throw new Error('系统中没有可用的训练分类，请联系管理员创建分类');
+            }
+          } catch (error) {
+            console.error('获取默认分类失败:', error);
+            throw new Error('无法获取训练分类信息，请稍后重试');
+          }
+        }
+        
+        // 优先使用训练详情中的权限信息，如果没有则使用源训练列表中的信息
+        const sourceAuth = trainingDetail.auth || sourceTraining.auth || 'Public';
+        const sourcePrivatePwd = trainingDetail.privatePwd || sourceTraining.privatePwd || '';
+        
         const newTrainingData = {
           training: {
             rank: sourceTraining.rank || 1000,
             title: sourceTraining.title + ' (副本)',
             description: trainingDetail.description || '',
-            privatePwd: '',
-            auth: 'Public', // 默认为公开
+            privatePwd: sourceAuth === 'Private' ? sourcePrivatePwd : '', // 保持私有密码
+            auth: sourceAuth, // 保持原课程的权限类型
             gid: this.groupId, // 团队ID应该放在training对象内部
             author: this.$store.getters.userInfo.username, // 添加作者字段
           },
-          trainingCategory: {
-            id: trainingDetail.trainingCategory?.id || sourceTraining.categoryId,
-          },
         };
+        
+        // 只有在有分类ID时才添加分类信息
+        if (categoryId) {
+          newTrainingData.trainingCategory = {
+            id: categoryId,
+          };
+        }
+        
+        console.log('源课程权限信息:', {
+          auth: sourceTraining.auth,
+          privatePwd: sourceTraining.privatePwd ? '***已设置***' : '未设置',
+          description: sourceTraining.description
+        });
+        console.log('训练详情权限信息:', {
+          auth: trainingDetail.auth,
+          privatePwd: trainingDetail.privatePwd ? '***已设置***' : '未设置'
+        });
         console.log('创建训练课程数据:', newTrainingData);
         
         const createRes = await api.addGroupTraining(newTrainingData);
         console.log('创建训练课程响应:', createRes);
-        const newTrainingId = createRes.data.data.id;
+        
+        // 检查响应数据结构
+        if (!createRes || !createRes.data) {
+          throw new Error('创建训练课程失败：响应数据为空');
+        }
+        
+        // 尝试获取新创建的训练课程ID
+        let newTrainingId = null;
+        console.log('完整响应数据结构:', JSON.stringify(createRes.data, null, 2));
+        
+        // 尝试多种可能的ID获取路径
+        if (createRes.data.data && createRes.data.data.id) {
+          newTrainingId = createRes.data.data.id;
+          console.log('从createRes.data.data.id获取ID:', newTrainingId);
+        } else if (createRes.data.data && typeof createRes.data.data === 'number') {
+          newTrainingId = createRes.data.data;
+          console.log('从createRes.data.data获取ID:', newTrainingId);
+        } else if (createRes.data.id) {
+          newTrainingId = createRes.data.id;
+          console.log('从createRes.data.id获取ID:', newTrainingId);
+        } else if (createRes.data.training && createRes.data.training.id) {
+          newTrainingId = createRes.data.training.id;
+          console.log('从createRes.data.training.id获取ID:', newTrainingId);
+        } else {
+          // 如果没有返回ID，尝试通过查询最新创建的课程来获取ID
+          console.warn('创建训练课程成功，但未返回课程ID，尝试通过查询获取');
+          try {
+            // 等待一小段时间让服务器完成创建
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // 查询团队训练列表，获取最新创建的课程
+            const trainingListRes = await api.getGroupTrainingList(1, 1, this.groupId);
+            console.log('查询团队训练列表响应:', trainingListRes);
+            
+            if (trainingListRes.data.data && trainingListRes.data.data.records && trainingListRes.data.data.records.length > 0) {
+              const latestTraining = trainingListRes.data.data.records[0];
+              if (latestTraining.title.includes('(副本)') && latestTraining.title.includes(sourceTraining.title)) {
+                newTrainingId = latestTraining.id;
+                console.log('通过查询获取到新创建的课程ID:', newTrainingId);
+              } else {
+                console.warn('无法找到新创建的课程，跳过题目复制');
+                mMessage.warning('训练课程创建成功，但无法复制题目（无法获取课程ID）');
+                return;
+              }
+            } else {
+              console.warn('查询团队训练列表失败，跳过题目复制');
+              mMessage.warning('训练课程创建成功，但无法复制题目（无法获取课程ID）');
+              return;
+            }
+          } catch (error) {
+            console.error('查询新创建课程失败:', error);
+            mMessage.warning('训练课程创建成功，但无法复制题目（查询失败）');
+            return;
+          }
+        }
+        
+        console.log('新创建的训练课程ID:', newTrainingId);
         
         // 4. 复制题目到新创建的团队训练课程
+        console.log('题目列表:', problemList);
         if (problemList && problemList.length > 0) {
+          let successCount = 0;
+          let failCount = 0;
+          
           for (const problem of problemList) {
             try {
+              console.log(`正在复制题目 ${problem.displayId || problem.problemId} (PID: ${problem.pid}) 到训练课程 ${newTrainingId}`);
+              console.log('题目数据结构:', problem);
+              
               // 使用现有的添加公共题目到训练课程的接口
-              await api.addGroupTrainingProblemFromPublic({
+              const addResult = await api.addGroupTrainingProblemFromPublic({
                 pid: problem.pid,
                 tid: newTrainingId,
+                displayId: problem.displayId || problem.problemId, // 添加displayId字段
               });
+              
+              console.log(`题目 ${problem.displayId} 复制成功:`, addResult);
+              successCount++;
             } catch (error) {
-              console.warn(`复制题目 ${problem.displayId} 失败:`, error);
+              console.error(`复制题目 ${problem.displayId || problem.problemId} (PID: ${problem.pid}) 失败:`, error);
+              if (error.response) {
+                console.error('错误详情:', error.response.data);
+                console.error('错误状态码:', error.response.status);
+                console.error('错误响应头:', error.response.headers);
+              }
+              failCount++;
               // 继续复制其他题目，不中断整个过程
             }
           }
+          
+          console.log(`题目复制完成: 成功 ${successCount} 个，失败 ${failCount} 个`);
+          if (failCount > 0) {
+            mMessage.warning(`题目复制完成：成功 ${successCount} 个，失败 ${failCount} 个`);
+          }
+        } else {
+          console.log('没有题目需要复制');
         }
         
       } catch (error) {
