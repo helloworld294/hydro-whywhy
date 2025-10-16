@@ -406,7 +406,52 @@ export default {
         
         // 优先使用训练详情中的权限信息，如果没有则使用源训练列表中的信息
         const sourceAuth = trainingDetail.auth || sourceTraining.auth || 'Public';
-        const sourcePrivatePwd = trainingDetail.privatePwd || sourceTraining.privatePwd || '';
+        
+        // 尝试多种可能的密码字段名
+        let sourcePrivatePwd = trainingDetail.privatePwd || 
+                              trainingDetail.password || 
+                              trainingDetail.privatePassword ||
+                              sourceTraining.privatePwd || 
+                              sourceTraining.password || 
+                              sourceTraining.privatePassword || 
+                              '';
+        
+        // 如果是私有课程但没有获取到密码，让用户输入密码
+        if (sourceAuth === 'Private' && !sourcePrivatePwd) {
+          console.warn('私有课程密码无法获取，需要用户输入密码');
+          
+          try {
+            // 使用Element UI的输入框让用户输入密码
+            const password = await this.$prompt('该课程是私有课程，请输入密码：', '输入密码', {
+              confirmButtonText: '确定',
+              cancelButtonText: '取消',
+              inputType: 'password',
+              inputPlaceholder: '请输入课程密码',
+              inputValidator: (value) => {
+                if (!value || value.trim() === '') {
+                  return '密码不能为空';
+                }
+                return true;
+              }
+            });
+            
+            // 如果用户输入了密码，使用用户输入的密码
+            if (password && password.value) {
+              sourcePrivatePwd = password.value.trim();
+              console.log('用户输入了密码');
+            } else {
+              throw new Error('用户取消了密码输入');
+            }
+          } catch (error) {
+            if (error === 'cancel') {
+              console.log('用户取消了复制操作');
+              throw new Error('用户取消了复制操作');
+            } else {
+              console.error('密码输入失败:', error);
+              throw new Error('密码输入失败');
+            }
+          }
+        }
         
         const newTrainingData = {
           training: {
@@ -427,14 +472,19 @@ export default {
           };
         }
         
+        console.log('源课程完整信息:', sourceTraining);
+        console.log('训练详情完整信息:', trainingDetail);
         console.log('源课程权限信息:', {
           auth: sourceTraining.auth,
           privatePwd: sourceTraining.privatePwd ? '***已设置***' : '未设置',
+          password: sourceTraining.password ? '***已设置***' : '未设置',
           description: sourceTraining.description
         });
         console.log('训练详情权限信息:', {
           auth: trainingDetail.auth,
-          privatePwd: trainingDetail.privatePwd ? '***已设置***' : '未设置'
+          privatePwd: trainingDetail.privatePwd ? '***已设置***' : '未设置',
+          password: trainingDetail.password ? '***已设置***' : '未设置',
+          privatePassword: trainingDetail.privatePassword ? '***已设置***' : '未设置'
         });
         console.log('创建训练课程数据:', newTrainingData);
         
@@ -475,13 +525,35 @@ export default {
             console.log('查询团队训练列表响应:', trainingListRes);
             
             if (trainingListRes.data.data && trainingListRes.data.data.records && trainingListRes.data.data.records.length > 0) {
-              const latestTraining = trainingListRes.data.data.records[0];
-              if (latestTraining.title.includes('(副本)') && latestTraining.title.includes(sourceTraining.title)) {
-                newTrainingId = latestTraining.id;
+              const trainingRecords = trainingListRes.data.data.records;
+              console.log('团队训练列表:', trainingRecords);
+              
+              // 查找包含"(副本)"的课程，并匹配原课程标题
+              // 在批量复制时，需要精确匹配，避免匹配到其他课程的副本
+              const originalTitle = sourceTraining.title.replace(' (副本)', '');
+              const expectedCopyTitle = sourceTraining.title + ' (副本)';
+              
+              const matchedTraining = trainingRecords.find(training => 
+                training.title === expectedCopyTitle || 
+                (training.title.includes('(副本)') && 
+                 training.title.includes(originalTitle) &&
+                 training.title.replace(' (副本)', '') === originalTitle)
+              );
+              
+              if (matchedTraining) {
+                newTrainingId = matchedTraining.id;
                 console.log('通过查询获取到新创建的课程ID:', newTrainingId);
+              console.log('匹配的课程详情:', matchedTraining);
               } else {
-                console.warn('无法找到新创建的课程，跳过题目复制');
-                mMessage.warning('训练课程创建成功，但无法复制题目（无法获取课程ID）');
+                console.warn('无法找到精确匹配的课程，显示所有可用课程供调试');
+                console.log('所有副本课程:', trainingRecords.filter(t => t.title.includes('(副本)')));
+                console.log('期望的副本标题:', expectedCopyTitle);
+                console.log('原始标题:', originalTitle);
+                
+                // 在批量复制时，如果找不到精确匹配，就不应该猜测
+                // 这可能导致题目复制到错误的课程中
+                console.warn('批量复制时无法找到精确匹配的课程，跳过题目复制');
+                mMessage.warning(`训练课程"${sourceTraining.title}"创建成功，但无法复制题目（无法获取准确的课程ID）`);
                 return;
               }
             } else {

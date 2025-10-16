@@ -18,7 +18,7 @@
             <el-input v-model="realNameForm.username" disabled></el-input>
           </el-form-item>
           
-          <el-form-item :label="$t('m.Real_Name')" prop="realname" required>
+          <el-form-item :label="$t('真实姓名')" prop="realname" required>
             <el-input
               v-model="realNameForm.realname"
               :placeholder="$t('m.Please_Enter_Real_Name')"
