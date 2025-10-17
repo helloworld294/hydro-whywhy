@@ -309,9 +309,18 @@ export default {
       this.copyLoading = true;
       
       try {
-        // 逐个复制选中的训练课程
-        for (const training of this.selectedTrainings) {
+        // 逐个复制选中的训练课程，添加延迟确保每个课程都能被正确识别
+        for (let i = 0; i < this.selectedTrainings.length; i++) {
+          const training = this.selectedTrainings[i];
+          console.log(`正在复制第 ${i + 1}/${this.selectedTrainings.length} 个课程: ${training.title}`);
+          
           await this.copySingleTraining(training);
+          
+          // 如果不是最后一个课程，添加延迟确保服务器处理完成
+          if (i < this.selectedTrainings.length - 1) {
+            console.log('等待2秒后复制下一个课程...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
         }
         
         mMessage.success(this.$t('m.Copy_Trainings_Successfully'));
@@ -518,42 +527,47 @@ export default {
           console.warn('创建训练课程成功，但未返回课程ID，尝试通过查询获取');
           try {
             // 等待一小段时间让服务器完成创建
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1500));
             
             // 查询团队训练列表，获取最新创建的课程
-            const trainingListRes = await api.getGroupTrainingList(1, 1, this.groupId);
+            const trainingListRes = await api.getGroupTrainingList(1, 10, this.groupId); // 获取前10个课程
             console.log('查询团队训练列表响应:', trainingListRes);
             
             if (trainingListRes.data.data && trainingListRes.data.data.records && trainingListRes.data.data.records.length > 0) {
               const trainingRecords = trainingListRes.data.data.records;
               console.log('团队训练列表:', trainingRecords);
               
-              // 查找包含"(副本)"的课程，并匹配原课程标题
-              // 在批量复制时，需要精确匹配，避免匹配到其他课程的副本
+              // 查找包含"(副本)"的课程，匹配原课程标题
               const originalTitle = sourceTraining.title.replace(' (副本)', '');
               const expectedCopyTitle = sourceTraining.title + ' (副本)';
               
-              const matchedTraining = trainingRecords.find(training => 
-                training.title === expectedCopyTitle || 
-                (training.title.includes('(副本)') && 
-                 training.title.includes(originalTitle) &&
-                 training.title.replace(' (副本)', '') === originalTitle)
+              // 先尝试完全匹配
+              let matchedTraining = trainingRecords.find(training => 
+                training.title === expectedCopyTitle
               );
+              
+              // 如果没有完全匹配，尝试包含匹配
+              if (!matchedTraining) {
+                matchedTraining = trainingRecords.find(training => 
+                  training.title.includes('(副本)') && 
+                  training.title.includes(originalTitle)
+                );
+              }
               
               if (matchedTraining) {
                 newTrainingId = matchedTraining.id;
                 console.log('通过查询获取到新创建的课程ID:', newTrainingId);
-              console.log('匹配的课程详情:', matchedTraining);
+                console.log('匹配的课程详情:', matchedTraining);
               } else {
-                console.warn('无法找到精确匹配的课程，显示所有可用课程供调试');
-                console.log('所有副本课程:', trainingRecords.filter(t => t.title.includes('(副本)')));
+                console.warn('无法找到匹配的课程，显示所有副本课程供调试');
+                const allCopyTrainings = trainingRecords.filter(t => t.title.includes('(副本)'));
+                console.log('所有副本课程:', allCopyTrainings);
                 console.log('期望的副本标题:', expectedCopyTitle);
                 console.log('原始标题:', originalTitle);
                 
-                // 在批量复制时，如果找不到精确匹配，就不应该猜测
-                // 这可能导致题目复制到错误的课程中
-                console.warn('批量复制时无法找到精确匹配的课程，跳过题目复制');
-                mMessage.warning(`训练课程"${sourceTraining.title}"创建成功，但无法复制题目（无法获取准确的课程ID）`);
+                // 如果找不到匹配的课程，跳过题目复制
+                console.warn('无法找到匹配的课程，跳过题目复制');
+                mMessage.warning(`训练课程"${sourceTraining.title}"创建成功，但无法复制题目（无法获取课程ID）`);
                 return;
               }
             } else {
