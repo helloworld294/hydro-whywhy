@@ -171,6 +171,9 @@
                 <el-dropdown-item command="/setting">{{
                   $t('m.NavBar_Setting')
                 }}</el-dropdown-item>
+                <el-dropdown-item command="/clipboard">{{
+                  $t('m.NavBar_Clipboard')
+                }}</el-dropdown-item>
                 <el-dropdown-item v-if="isAdminRole" command="/admin">{{
                   $t('m.NavBar_Management')
                 }}</el-dropdown-item>
@@ -395,6 +398,13 @@
               <mu-list-item-content>
                 <mu-list-item-title>{{
                   $t('m.NavBar_Setting')
+                }}</mu-list-item-title>
+              </mu-list-item-content>
+            </mu-list-item>
+            <mu-list-item button value="/clipboard">
+              <mu-list-item-content>
+                <mu-list-item-title>{{
+                  $t('m.NavBar_Clipboard')
                 }}</mu-list-item-title>
               </mu-list-item-content>
             </mu-list-item>

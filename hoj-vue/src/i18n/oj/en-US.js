@@ -31,6 +31,7 @@ export const m = {
   NavBar_UserHome: 'Home',
   NavBar_Submissions: 'Submissions',
   NavBar_Setting: 'Setting',
+  NavBar_Clipboard: 'Cloud Clipboard',
   NavBar_Management: 'Management',
   NavBar_Logout: 'Logout',
   Dialog_Login: 'Login',
@@ -827,5 +828,29 @@ export const m = {
   Unsupported_File_Type: 'Unsupported file type',
   File_Size_Exceeded: 'File size exceeds limit',
   Supported_File_Types: 'Supported file types',
-  Max_File_Size: 'Maximum file size'
+  Max_File_Size: 'Maximum file size',
+
+  // Cloud Clipboard related
+  Cloud_Clipboard: 'Cloud Clipboard',
+  Create_Clipboard: 'Create Clipboard',
+  Untitled: 'Untitled',
+  Title: 'Title',
+  Content: 'Content',
+  Title_Placeholder: 'Enter title (optional)',
+  Content_Placeholder: 'Enter clipboard content',
+  Content_Required: 'Content cannot be empty',
+  Copy_Successfully: 'Copied successfully',
+  Save_Successfully: 'Saved successfully',
+  Add: 'Add',
+  Edit: 'Edit',
+  Copy: 'Copy',
+  Delete: 'Delete',
+  Save: 'Save',
+  Cancel: 'Cancel',
+  Delete_Tips: 'Are you sure you want to delete this clipboard record?',
+  Delete_Successfully: 'Deleted successfully',
+  Update_Successfully: 'Updated successfully',
+  No_Data: 'No Data',
+  Enter_keyword: 'Enter keyword',
+  OK: 'OK'
 }

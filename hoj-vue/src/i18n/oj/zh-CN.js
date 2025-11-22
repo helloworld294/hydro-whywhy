@@ -31,6 +31,7 @@ export const m = {
   NavBar_UserHome: '我的首页',
   NavBar_Submissions: '我的提交',
   NavBar_Setting: '我的设置',
+  NavBar_Clipboard: '云剪贴板',
   NavBar_Management: '后台管理',
   NavBar_Logout: '退出登录',
   Dialog_Login: '登录',
@@ -830,5 +831,29 @@ export const m = {
   Unsupported_File_Type: '不支持的文件类型',
   File_Size_Exceeded: '文件大小超过限制',
   Supported_File_Types: '支持的文件类型',
-  Max_File_Size: '最大文件大小'
+  Max_File_Size: '最大文件大小',
+
+  // 云剪贴板相关
+  Cloud_Clipboard: '云剪贴板',
+  Create_Clipboard: '创建剪贴板',
+  Untitled: '未命名',
+  Title: '标题',
+  Content: '内容',
+  Title_Placeholder: '请输入标题（可选）',
+  Content_Placeholder: '请输入剪贴板内容',
+  Content_Required: '内容不能为空',
+  Copy_Successfully: '复制成功',
+  Save_Successfully: '保存成功',
+  Add: '添加',
+  Edit: '编辑',
+  Copy: '复制',
+  Delete: '删除',
+  Save: '保存',
+  Cancel: '取消',
+  Delete_Tips: '确定要删除这条剪贴板记录吗？',
+  Delete_Successfully: '删除成功',
+  Update_Successfully: '更新成功',
+  No_Data: '暂无数据',
+  Enter_keyword: '请输入关键词',
+  OK: '确定'
 }

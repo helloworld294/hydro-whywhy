@@ -706,6 +706,32 @@ const ojApi = {
     })
   },
 
+  // 云剪贴板相关API
+  saveClipboard(data) {
+    return ajax('/api/clipboard', 'post', {
+      data
+    })
+  },
+  getClipboardList(currentPage, limit) {
+    return ajax('/api/clipboard', 'get', {
+      params: {
+        currentPage,
+        limit
+      }
+    })
+  },
+  getClipboard(id) {
+    return ajax(`/api/clipboard/${id}`, 'get')
+  },
+  updateClipboard(id, data) {
+    return ajax(`/api/clipboard/${id}`, 'put', {
+      data
+    })
+  },
+  deleteClipboard(id) {
+    return ajax(`/api/clipboard/${id}`, 'delete')
+  },
+
   // 讨论页相关请求
   getCategoryList() {
     return ajax("/api/discussion-category", 'get')

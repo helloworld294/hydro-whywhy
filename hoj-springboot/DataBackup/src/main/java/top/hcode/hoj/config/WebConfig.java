@@ -40,5 +40,5 @@ public class WebConfig {
 
     private String projectName = "HOJ";
 
-    private String projectUrl = "https://gitee.com/himitzh0730/hoj";
+    private String projectUrl = "https://gitee.com/whysblog/hoj-why";
 }

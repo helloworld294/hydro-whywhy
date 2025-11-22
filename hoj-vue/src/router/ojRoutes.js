@@ -11,6 +11,8 @@ import Problem from "@/views/oj/problem/Problem.vue"
 import ACMRank from "@/views/oj/rank/ACMRank.vue"
 import OIRank from "@/views/oj/rank/OIRank.vue"
 import TotalRank from "@/views/oj/rank/TotalRank.vue"
+import ClipboardList from "@/views/oj/clipboard/ClipboardList.vue"
+import ClipboardDetail from "@/views/oj/clipboard/ClipboardDetail.vue"
 import ContestDetails from "@/views/oj/contest/ContestDetails.vue"
 import ACMScoreBoard from "@/views/oj/contest/outside/ACMScoreBoard.vue"
 import OIScoreBoard from "@/views/oj/contest/outside/OIScoreBoard.vue"
@@ -274,6 +276,18 @@ const ojRoutes = [
     path: '/setting',
     component: Setting,
     meta: { requireAuth: true, title: 'Setting' }
+  },
+  {
+    name: 'ClipboardList',
+    path: '/clipboard',
+    component: ClipboardList,
+    meta: { requireAuth: true, title: 'Cloud Clipboard' }
+  },
+  {
+    name: 'ClipboardDetails',
+    path: '/clipboard/:clipboardID',
+    component: ClipboardDetail,
+    meta: { requireAuth: true, title: 'Clipboard Detail' }
   },
   {
     name: 'RealNameAuth',
