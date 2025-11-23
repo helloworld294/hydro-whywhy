@@ -39,7 +39,9 @@
       </div>
 
       <el-card class="content-card">
-        <div class="clipboard-content" v-html="clipboard.content"></div>
+        <div class="clipboard-content">
+          <Markdown :isAvoidXss="true" :content="clipboard.content"></Markdown>
+        </div>
       </el-card>
     </div>
 
@@ -72,11 +74,13 @@
 import api from '@/common/api';
 import myMessage from '@/common/message';
 import { mapGetters } from 'vuex';
+import Markdown from '@/components/oj/common/Markdown';
 const Editor = () => import('@/components/admin/Editor.vue');
 
 export default {
   components: {
     Editor,
+    Markdown,
   },
   data() {
     return {
