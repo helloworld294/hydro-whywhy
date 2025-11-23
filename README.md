@@ -17,3 +17,7 @@
 - 管理员进行敏感操作时需要输入二次确认密码 （默认fdtfdt）可使用ctrl+f查找更改
 #### 其他
 - 新增云剪贴板内容
+<details>
+ <summary>### 更新日志 点击查看详情</summary>
+ ##### 2025-11-23 23:08 update:修复bug:云剪贴板markdown渲染错误
+</details>
