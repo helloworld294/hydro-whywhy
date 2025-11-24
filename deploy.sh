@@ -333,19 +333,58 @@ if [ -f "package.json" ]; then
     echo -e "${GREEN}Node版本: $(node --version)${NC}"
     echo -e "${GREEN}NPM版本: $(npm --version)${NC}"
     
-    npm install
-    npm run build
+    echo -e "${YELLOW}开始安装前端依赖...${NC}"
+    npm install --loglevel=error 2>&1 | tail -20
+    if [ ${PIPESTATUS[0]} -ne 0 ]; then
+        echo -e "${RED}错误: npm install 失败${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}依赖安装完成${NC}"
+    
+    echo -e "${YELLOW}开始编译前端...${NC}"
+    # 使用timeout防止卡住（如果可用），最多等待30分钟
+    if command -v timeout &> /dev/null; then
+        timeout 1800 npm run build 2>&1 || {
+            BUILD_EXIT_CODE=$?
+            if [ $BUILD_EXIT_CODE -eq 124 ]; then
+                echo -e "${RED}错误: 前端编译超时（超过30分钟）${NC}"
+                exit 1
+            else
+                echo -e "${YELLOW}警告: npm run build 退出码: $BUILD_EXIT_CODE，继续检查dist目录...${NC}"
+            fi
+        }
+    else
+        # 如果没有timeout命令，直接运行
+        npm run build 2>&1 || {
+            BUILD_EXIT_CODE=$?
+            echo -e "${YELLOW}警告: npm run build 退出码: $BUILD_EXIT_CODE，继续检查dist目录...${NC}"
+        }
+    fi
+    
+    # 等待一下确保文件写入完成
+    sleep 2
+    
     if [ ! -d "dist" ]; then
         echo -e "${RED}错误: 前端编译失败，dist目录不存在${NC}"
         exit 1
     fi
+    
+    # 检查dist目录是否有内容
+    if [ -z "$(ls -A dist 2>/dev/null)" ]; then
+        echo -e "${RED}错误: dist目录为空${NC}"
+        exit 1
+    fi
+    
     echo -e "${GREEN}前端编译完成${NC}"
+    echo -e "${YELLOW}前端编译步骤完成，继续执行下一步...${NC}"
 else
     echo -e "${RED}错误: 未找到package.json文件${NC}"
     exit 1
 fi
 
 # 3. 创建clipboard表
+echo -e "${YELLOW}========================================${NC}"
+echo -e "${YELLOW}开始数据库操作...${NC}"
 echo -e "${YELLOW}[3/6] 创建clipboard数据表...${NC}"
 if docker exec -i "$MYSQL_CONTAINER" mysql -uroot -p"$MYSQL_PASSWORD" hoj < "$CLIPBOARD_SQL" 2>/dev/null; then
     echo -e "${GREEN}clipboard表创建成功${NC}"
