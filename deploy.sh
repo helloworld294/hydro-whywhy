@@ -453,7 +453,32 @@ elif [ -d "/root/dist" ]; then
     cp -r "$FRONTEND_SOURCE/dist"/* /root/dist/
     echo -e "${GREEN}前端dist文件已更新到 /root/dist${NC}"
 else
-    echo -e "${YELLOW}警告: 未找到前端dist目录，请手动更新${NC}"
+    # 创建dist目录
+    mkdir -p /root/dist
+    cp -r "$FRONTEND_SOURCE/dist"/* /root/dist/
+    echo -e "${GREEN}前端dist文件已更新到 /root/dist${NC}"
+fi
+
+# 7. 检查docker-compose.yml配置
+echo -e "${YELLOW}[7/7] 检查docker-compose.yml配置...${NC}"
+if [ -f "$DEPLOY_PATH/docker-compose.yml" ]; then
+    # 检查前端是否使用dist挂载
+    if grep -q "/root/dist:/usr/share/nginx/html" "$DEPLOY_PATH/docker-compose.yml" || grep -q "/root/dist" "$DEPLOY_PATH/docker-compose.yml"; then
+        echo -e "${GREEN}✓ 前端已配置使用 /root/dist 挂载${NC}"
+    else
+        echo -e "${YELLOW}⚠ 警告: 前端未配置使用 /root/dist 挂载${NC}"
+        echo -e "${YELLOW}  请检查 docker-compose.yml 中 hoj-frontend 的 volumes 配置${NC}"
+    fi
+    
+    # 检查后端是否使用build方式（自己的镜像）
+    if grep -A 3 "hoj-backend:" "$DEPLOY_PATH/docker-compose.yml" | grep -q "build:"; then
+        echo -e "${GREEN}✓ 后端已配置使用 build 方式（自己的镜像）${NC}"
+    else
+        echo -e "${YELLOW}⚠ 警告: 后端未配置使用 build 方式${NC}"
+        echo -e "${YELLOW}  请检查 docker-compose.yml 中 hoj-backend 是否使用 build 配置${NC}"
+    fi
+else
+    echo -e "${YELLOW}警告: 未找到docker-compose.yml文件${NC}"
 fi
 
 # 重启服务
@@ -488,9 +513,10 @@ echo -e "  代码路径: ${CODE_PATH}"
 echo -e "  部署路径: ${DEPLOY_PATH}"
 echo -e "  MySQL容器: ${MYSQL_CONTAINER}"
 echo -e "  后端jar: 已编译并更新"
-echo -e "  前端dist: 已编译并更新"
+echo -e "  前端dist: 已编译并更新到 /root/dist"
 echo -e "  数据库表: clipboard表已创建"
 echo -e "  用户角色: 角色1009、1010已添加"
+echo -e "  docker-compose.yml: 已检查配置"
 echo -e ""
 echo -e "${YELLOW}请检查服务是否正常运行:${NC}"
 echo -e "  cd ${DEPLOY_PATH} && docker-compose ps"
