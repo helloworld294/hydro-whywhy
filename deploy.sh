@@ -2,6 +2,7 @@
 
 # HOJ 本地部署脚本（在服务器上直接运行）
 # 使用方法: ./deploy.sh
+# 功能: 自动检测并安装缺失的依赖（Maven、Node.js、Docker等）
 
 set -e
 
@@ -49,6 +50,20 @@ MYSQL_CONTAINER=${MYSQL_CONTAINER:-hoj-mysql}
 read -p "请输入MySQL root密码 (默认: hoj123456): " MYSQL_PASSWORD
 MYSQL_PASSWORD=${MYSQL_PASSWORD:-hoj123456}
 
+# 检查并安装Git（如果需要）
+if ! command -v git &> /dev/null; then
+    echo -e "${YELLOW}未找到Git，开始安装...${NC}"
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y git
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y git
+    else
+        echo -e "${RED}错误: 无法自动安装Git，请手动安装${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Git安装完成${NC}"
+fi
+
 # 检查Git仓库
 if [ ! -d "$CODE_PATH/.git" ]; then
     read -p "代码目录不是Git仓库，是否执行git clone? (y/n, 默认: y): " DO_CLONE
@@ -89,15 +104,48 @@ if [ ! -f "$NEW_ROLES_SQL" ]; then
     exit 1
 fi
 
-# 检查Docker和Docker Compose
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}错误: Docker未安装${NC}"
-    exit 1
+# 检查并安装curl（如果需要）
+if ! command -v curl &> /dev/null; then
+    echo -e "${YELLOW}未找到curl，开始安装...${NC}"
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y curl
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y curl
+    else
+        echo -e "${RED}错误: 无法自动安装curl，请手动安装${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}curl安装完成${NC}"
 fi
 
+# 检查并安装Docker（如果需要）
+if ! command -v docker &> /dev/null; then
+    echo -e "${YELLOW}未找到Docker，开始安装...${NC}"
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+    rm -f get-docker.sh
+    sudo usermod -aG docker $USER
+    echo -e "${GREEN}Docker安装完成，请重新登录或执行: newgrp docker${NC}"
+    echo -e "${YELLOW}注意: 如果Docker命令仍不可用，请重新运行脚本${NC}"
+    # 尝试加载Docker（如果可能）
+    if [ -f /usr/bin/docker ]; then
+        export PATH="/usr/bin:$PATH"
+    fi
+fi
+
+# 检查并安装Docker Compose（如果需要）
 if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null 2>&1; then
-    echo -e "${RED}错误: Docker Compose未安装${NC}"
-    exit 1
+    echo -e "${YELLOW}未找到Docker Compose，开始安装...${NC}"
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y docker-compose-plugin
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y docker-compose-plugin
+    else
+        # 安装docker-compose standalone
+        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+    fi
+    echo -e "${GREEN}Docker Compose安装完成${NC}"
 fi
 
 # 检查MySQL容器
@@ -110,8 +158,24 @@ echo -e "${YELLOW}开始部署...${NC}"
 
 # 1. 编译后端
 echo -e "${YELLOW}[1/6] 编译后端...${NC}"
+
+# 检查并安装Maven（如果需要）
+if ! command -v mvn &> /dev/null; then
+    echo -e "${YELLOW}未找到Maven，开始安装...${NC}"
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y maven
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y maven
+    else
+        echo -e "${RED}错误: 无法自动安装Maven，请手动安装${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Maven安装完成${NC}"
+fi
+
 cd "$BACKEND_SOURCE"
 if [ -f "pom.xml" ]; then
+    echo -e "${GREEN}Maven版本: $(mvn --version | head -1)${NC}"
     mvn clean package -DskipTests
     BACKEND_JAR="$BACKEND_SOURCE/DataBackup/target/hoj-backend-4.6.jar"
     if [ ! -f "$BACKEND_JAR" ]; then
@@ -128,6 +192,76 @@ fi
 echo -e "${YELLOW}[2/6] 编译前端...${NC}"
 cd "$FRONTEND_SOURCE"
 if [ -f "package.json" ]; then
+    # 加载nvm（如果存在）
+    if [ -s "$HOME/.nvm/nvm.sh" ]; then
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+    fi
+    
+    # 检查并安装nvm（如果需要）
+    if ! command -v node &> /dev/null; then
+        echo -e "${YELLOW}未找到node，检查nvm...${NC}"
+        
+        # 如果nvm目录存在但未加载，尝试加载
+        if [ -d "$HOME/.nvm" ] && [ ! -s "$HOME/.nvm/nvm.sh" ]; then
+            echo -e "${YELLOW}nvm目录存在但未正确安装，重新安装...${NC}"
+            rm -rf "$HOME/.nvm"
+        fi
+        
+        # 如果nvm不存在，安装nvm
+        if [ ! -d "$HOME/.nvm" ]; then
+            echo -e "${YELLOW}开始安装nvm...${NC}"
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash || {
+                echo -e "${RED}错误: nvm安装失败，尝试使用备用源...${NC}"
+                curl -o- https://gitee.com/mirrors/nvm/raw/master/install.sh | bash || {
+                    echo -e "${RED}错误: nvm安装失败，请手动安装${NC}"
+                    exit 1
+                }
+            }
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+            echo -e "${GREEN}nvm安装完成${NC}"
+        else
+            # nvm目录存在，加载它
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+        fi
+        
+        # 使用nvm安装node
+        if command -v nvm &> /dev/null; then
+            echo -e "${YELLOW}使用nvm安装Node.js LTS版本...${NC}"
+            nvm install --lts
+            nvm use --lts
+            nvm alias default node
+        else
+            echo -e "${RED}错误: nvm安装后仍无法使用，请手动安装node${NC}"
+            exit 1
+        fi
+    fi
+    
+    # 再次加载nvm环境（确保node可用）
+    if [ -s "$HOME/.nvm/nvm.sh" ]; then
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    fi
+    
+    # 检查node和npm
+    if ! command -v node &> /dev/null; then
+        echo -e "${RED}错误: node未找到，请检查安装${NC}"
+        exit 1
+    fi
+    
+    if ! command -v npm &> /dev/null; then
+        echo -e "${RED}错误: npm未找到，请检查node安装${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}Node版本: $(node --version)${NC}"
+    echo -e "${GREEN}NPM版本: $(npm --version)${NC}"
+    
     npm install
     npm run build
     if [ ! -d "dist" ]; then
