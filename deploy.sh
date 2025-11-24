@@ -349,47 +349,41 @@ if [ -f "package.json" ]; then
     
     echo -e "${YELLOW}开始编译前端...${NC}"
     # 监控npm run build的输出，检测"Build Complete"字符串
-    # 使用临时文件标记编译完成
-    BUILD_COMPLETE_FLAG="/tmp/hoj_build_complete_$$"
-    rm -f "$BUILD_COMPLETE_FLAG"
-    
-    # 创建监控函数
-    monitor_build() {
-        npm run build 2>&1 | while IFS= read -r line; do
-            echo "$line"
-            # 检测"Build Complete"或类似的完成标志（不区分大小写）
-            if echo "$line" | grep -qiE "(Build Complete|build complete|Build complete|DONE|Compiled successfully|compiled successfully)"; then
-                echo -e "${GREEN}检测到编译完成标志，等待编译结束...${NC}"
-                touch "$BUILD_COMPLETE_FLAG"
-                # 等待一下让编译完全结束
-                sleep 5
-                break
-            fi
-        done
-    }
+    BUILD_COMPLETE_DETECTED=false
     
     # 使用timeout防止卡住（如果可用），最多等待30分钟
     if command -v timeout &> /dev/null; then
-        monitor_build &
-        MONITOR_PID=$!
-        
-        # 等待编译完成标志或超时
-        timeout 1800 sh -c "while [ ! -f '$BUILD_COMPLETE_FLAG' ] && kill -0 $MONITOR_PID 2>/dev/null; do sleep 1; done" || {
-            if [ $? -eq 124 ]; then
+        timeout 1800 sh -c '
+            npm run build 2>&1 | while IFS= read -r line; do
+                echo "$line"
+                # 检测"Build Complete"或类似的完成标志（不区分大小写）
+                if echo "$line" | grep -qiE "(Build Complete|build complete|Build complete|DONE|Compiled successfully|compiled successfully)"; then
+                    echo -e "\033[0;32m检测到编译完成标志，结束前端编译\033[0m"
+                    # 立即结束编译进程
+                    pkill -P $$ npm 2>/dev/null || true
+                    exit 0
+                fi
+            done
+        ' || {
+            BUILD_EXIT_CODE=$?
+            if [ $BUILD_EXIT_CODE -eq 124 ]; then
                 echo -e "${RED}错误: 前端编译超时（超过30分钟）${NC}"
-                kill $MONITOR_PID 2>/dev/null || true
                 pkill -f "npm run build" 2>/dev/null || true
-                rm -f "$BUILD_COMPLETE_FLAG"
                 exit 1
             fi
         }
-        
-        # 等待监控进程结束
-        wait $MONITOR_PID 2>/dev/null || true
-        rm -f "$BUILD_COMPLETE_FLAG"
     else
         # 如果没有timeout命令，直接运行并监控输出
-        monitor_build
+        npm run build 2>&1 | while IFS= read -r line; do
+            echo "$line"
+            # 检测"Build Complete"或类似的完成标志
+            if echo "$line" | grep -qiE "(Build Complete|build complete|Build complete|DONE|Compiled successfully|compiled successfully)"; then
+                echo -e "${GREEN}检测到编译完成标志，结束前端编译${NC}"
+                # 立即结束编译进程
+                pkill -P $$ npm 2>/dev/null || true
+                break
+            fi
+        done
     fi
     
     # 等待一下确保文件写入完成
@@ -459,23 +453,62 @@ else
     echo -e "${GREEN}前端dist文件已更新到 /root/dist${NC}"
 fi
 
-# 7. 检查docker-compose.yml配置
+# 7. 检查并修改docker-compose.yml配置
 echo -e "${YELLOW}[7/7] 检查docker-compose.yml配置...${NC}"
 if [ -f "$DEPLOY_PATH/docker-compose.yml" ]; then
     # 检查前端是否使用dist挂载
-    if grep -q "/root/dist:/usr/share/nginx/html" "$DEPLOY_PATH/docker-compose.yml" || grep -q "/root/dist" "$DEPLOY_PATH/docker-compose.yml"; then
+    if grep -q "/root/dist:/usr/share/nginx/html" "$DEPLOY_PATH/docker-compose.yml"; then
         echo -e "${GREEN}✓ 前端已配置使用 /root/dist 挂载${NC}"
     else
-        echo -e "${YELLOW}⚠ 警告: 前端未配置使用 /root/dist 挂载${NC}"
-        echo -e "${YELLOW}  请检查 docker-compose.yml 中 hoj-frontend 的 volumes 配置${NC}"
+        echo -e "${YELLOW}⚠ 前端未配置使用 /root/dist 挂载${NC}"
+        read -p "是否自动修改为使用 /root/dist 挂载? (y/n, 默认: y): " FIX_FRONTEND
+        FIX_FRONTEND=${FIX_FRONTEND:-y}
+        if [ "$FIX_FRONTEND" = "y" ] || [ "$FIX_FRONTEND" = "Y" ]; then
+            # 备份原文件
+            cp "$DEPLOY_PATH/docker-compose.yml" "$DEPLOY_PATH/docker-compose.yml.bak.$(date +%Y%m%d_%H%M%S)"
+            # 使用sed修改volumes配置
+            if grep -q "hoj-frontend:" "$DEPLOY_PATH/docker-compose.yml"; then
+                # 替换volumes中的路径为/root/dist
+                sed -i '/hoj-frontend:/,/^[[:space:]]*[a-zA-Z-]/ {
+                    s|- .*:/usr/share/nginx/html|- /root/dist:/usr/share/nginx/html|
+                }' "$DEPLOY_PATH/docker-compose.yml"
+                
+                # 如果volumes不存在，添加volumes配置
+                if ! grep -A 10 "hoj-frontend:" "$DEPLOY_PATH/docker-compose.yml" | grep -q "volumes:"; then
+                    sed -i '/hoj-frontend:/a\    volumes:\n      - /root/dist:/usr/share/nginx/html' "$DEPLOY_PATH/docker-compose.yml"
+                fi
+                
+                echo -e "${GREEN}✓ 已自动修改前端配置为使用 /root/dist 挂载${NC}"
+            else
+                echo -e "${YELLOW}警告: 未找到 hoj-frontend 配置，无法自动修改${NC}"
+            fi
+        fi
     fi
     
     # 检查后端是否使用build方式（自己的镜像）
-    if grep -A 3 "hoj-backend:" "$DEPLOY_PATH/docker-compose.yml" | grep -q "build:"; then
+    if grep -A 5 "hoj-backend:" "$DEPLOY_PATH/docker-compose.yml" | grep -q "build:"; then
         echo -e "${GREEN}✓ 后端已配置使用 build 方式（自己的镜像）${NC}"
     else
-        echo -e "${YELLOW}⚠ 警告: 后端未配置使用 build 方式${NC}"
-        echo -e "${YELLOW}  请检查 docker-compose.yml 中 hoj-backend 是否使用 build 配置${NC}"
+        echo -e "${YELLOW}⚠ 后端未配置使用 build 方式${NC}"
+        read -p "是否自动修改为使用 build 方式? (y/n, 默认: y): " FIX_BACKEND
+        FIX_BACKEND=${FIX_BACKEND:-y}
+        if [ "$FIX_BACKEND" = "y" ] || [ "$FIX_BACKEND" = "Y" ]; then
+            # 备份原文件
+            cp "$DEPLOY_PATH/docker-compose.yml" "$DEPLOY_PATH/docker-compose.yml.bak.$(date +%Y%m%d_%H%M%S)"
+            # 修改后端配置，添加build方式
+            if grep -q "hoj-backend:" "$DEPLOY_PATH/docker-compose.yml"; then
+                # 检查是否已有build配置
+                if ! grep -A 5 "hoj-backend:" "$DEPLOY_PATH/docker-compose.yml" | grep -q "build:"; then
+                    # 在hoj-backend:后面添加build配置（在container_name之前）
+                    sed -i '/hoj-backend:/a\    build:\n      context: ../src/backend\n      dockerfile: Dockerfile\n    image: hoj-backend-custom' "$DEPLOY_PATH/docker-compose.yml"
+                    echo -e "${GREEN}✓ 已自动修改后端配置为使用 build 方式${NC}"
+                else
+                    echo -e "${GREEN}✓ 后端已有 build 配置${NC}"
+                fi
+            else
+                echo -e "${YELLOW}警告: 未找到 hoj-backend 配置，无法自动修改${NC}"
+            fi
+        fi
     fi
 else
     echo -e "${YELLOW}警告: 未找到docker-compose.yml文件${NC}"
