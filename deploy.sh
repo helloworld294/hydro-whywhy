@@ -159,6 +159,74 @@ echo -e "${YELLOW}开始部署...${NC}"
 # 1. 编译后端
 echo -e "${YELLOW}[1/6] 编译后端...${NC}"
 
+# 检查并安装Java 8（如果需要）
+REQUIRED_JAVA_VERSION="1.8"
+if ! command -v java &> /dev/null; then
+    echo -e "${YELLOW}未找到Java，开始安装Java 8...${NC}"
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update
+        sudo apt-get install -y openjdk-8-jdk
+        sudo update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
+        sudo update-alternatives --set javac /usr/lib/jvm/java-8-openjdk-amd64/bin/javac
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y java-1.8.0-openjdk java-1.8.0-openjdk-devel
+    else
+        echo -e "${RED}错误: 无法自动安装Java，请手动安装Java 8${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Java 8安装完成${NC}"
+else
+    # 检查Java版本
+    JAVA_VERSION=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1,2)
+    JAVA_MAJOR=$(echo $JAVA_VERSION | cut -d'.' -f1)
+    JAVA_MINOR=$(echo $JAVA_VERSION | cut -d'.' -f2)
+    
+    if [ -z "$JAVA_MINOR" ]; then
+        JAVA_MINOR=0
+    fi
+    
+    # 检查是否是Java 8
+    if [ "$JAVA_MAJOR" != "1" ] || [ "$JAVA_MINOR" != "8" ]; then
+        echo -e "${YELLOW}当前Java版本: $JAVA_VERSION，项目需要Java 8，开始安装...${NC}"
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y openjdk-8-jdk
+            # 设置Java 8为默认版本
+            if [ -d "/usr/lib/jvm/java-8-openjdk-amd64" ]; then
+                sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java 1
+                sudo update-alternatives --install /usr/bin/javac javac /usr/lib/jvm/java-8-openjdk-amd64/bin/javac 1
+                sudo update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
+                sudo update-alternatives --set javac /usr/lib/jvm/java-8-openjdk-amd64/bin/javac
+            fi
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y java-1.8.0-openjdk java-1.8.0-openjdk-devel
+            sudo alternatives --set java /usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/bin/java
+        else
+            echo -e "${RED}错误: 无法自动安装Java 8，请手动安装${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}Java 8安装完成${NC}"
+        # 重新加载环境
+        export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+        export PATH=$JAVA_HOME/bin:$PATH
+    else
+        echo -e "${GREEN}Java版本检查通过: $JAVA_VERSION${NC}"
+    fi
+fi
+
+# 设置JAVA_HOME（如果未设置）
+if [ -z "$JAVA_HOME" ]; then
+    if [ -d "/usr/lib/jvm/java-8-openjdk-amd64" ]; then
+        export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+    elif [ -d "/usr/lib/jvm/java-1.8.0-openjdk-amd64" ]; then
+        export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
+    fi
+    if [ -n "$JAVA_HOME" ]; then
+        export PATH=$JAVA_HOME/bin:$PATH
+        echo -e "${GREEN}已设置JAVA_HOME: $JAVA_HOME${NC}"
+    fi
+fi
+
 # 检查并安装Maven（如果需要）
 if ! command -v mvn &> /dev/null; then
     echo -e "${YELLOW}未找到Maven，开始安装...${NC}"
@@ -175,7 +243,10 @@ fi
 
 cd "$BACKEND_SOURCE"
 if [ -f "pom.xml" ]; then
+    echo -e "${GREEN}Java版本: $(java -version 2>&1 | head -1)${NC}"
     echo -e "${GREEN}Maven版本: $(mvn --version | head -1)${NC}"
+    # 确保Maven使用正确的Java版本
+    export JAVA_HOME=${JAVA_HOME:-$(readlink -f $(which java) | sed "s:bin/java::")}
     mvn clean package -DskipTests
     BACKEND_JAR="$BACKEND_SOURCE/DataBackup/target/hoj-backend-4.6.jar"
     if [ ! -f "$BACKEND_JAR" ]; then
