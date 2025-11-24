@@ -263,6 +263,12 @@ fi
 echo -e "${YELLOW}[2/6] 编译前端...${NC}"
 cd "$FRONTEND_SOURCE"
 if [ -f "package.json" ]; then
+    # 检查dist目录是否已存在
+    if [ -d "dist" ] && [ -n "$(ls -A dist 2>/dev/null)" ]; then
+        echo -e "${GREEN}dist目录已存在，跳过前端编译${NC}"
+        echo -e "${GREEN}前端编译完成${NC}"
+        echo -e "${YELLOW}前端编译步骤完成，继续执行下一步...${NC}"
+    else
     # 加载nvm（如果存在）
     if [ -s "$HOME/.nvm/nvm.sh" ]; then
         export NVM_DIR="$HOME/.nvm"
@@ -342,41 +348,56 @@ if [ -f "package.json" ]; then
     echo -e "${GREEN}依赖安装完成${NC}"
     
     echo -e "${YELLOW}开始编译前端...${NC}"
+    # 监控npm run build的输出，检测"Build Complete"字符串
+    # 使用临时文件标记编译完成
+    BUILD_COMPLETE_FLAG="/tmp/hoj_build_complete_$$"
+    rm -f "$BUILD_COMPLETE_FLAG"
+    
+    # 创建监控函数
+    monitor_build() {
+        npm run build 2>&1 | while IFS= read -r line; do
+            echo "$line"
+            # 检测"Build Complete"或类似的完成标志（不区分大小写）
+            if echo "$line" | grep -qiE "(Build Complete|build complete|Build complete|DONE|Compiled successfully|compiled successfully)"; then
+                echo -e "${GREEN}检测到编译完成标志，等待编译结束...${NC}"
+                touch "$BUILD_COMPLETE_FLAG"
+                # 等待一下让编译完全结束
+                sleep 5
+                break
+            fi
+        done
+    }
+    
     # 使用timeout防止卡住（如果可用），最多等待30分钟
     if command -v timeout &> /dev/null; then
-        timeout 1800 npm run build 2>&1 || {
-            BUILD_EXIT_CODE=$?
-            if [ $BUILD_EXIT_CODE -eq 124 ]; then
+        monitor_build &
+        MONITOR_PID=$!
+        
+        # 等待编译完成标志或超时
+        timeout 1800 sh -c "while [ ! -f '$BUILD_COMPLETE_FLAG' ] && kill -0 $MONITOR_PID 2>/dev/null; do sleep 1; done" || {
+            if [ $? -eq 124 ]; then
                 echo -e "${RED}错误: 前端编译超时（超过30分钟）${NC}"
+                kill $MONITOR_PID 2>/dev/null || true
+                pkill -f "npm run build" 2>/dev/null || true
+                rm -f "$BUILD_COMPLETE_FLAG"
                 exit 1
-            else
-                echo -e "${YELLOW}警告: npm run build 退出码: $BUILD_EXIT_CODE，继续检查dist目录...${NC}"
             fi
         }
+        
+        # 等待监控进程结束
+        wait $MONITOR_PID 2>/dev/null || true
+        rm -f "$BUILD_COMPLETE_FLAG"
     else
-        # 如果没有timeout命令，直接运行
-        npm run build 2>&1 || {
-            BUILD_EXIT_CODE=$?
-            echo -e "${YELLOW}警告: npm run build 退出码: $BUILD_EXIT_CODE，继续检查dist目录...${NC}"
-        }
+        # 如果没有timeout命令，直接运行并监控输出
+        monitor_build
     fi
     
     # 等待一下确保文件写入完成
     sleep 2
     
-    if [ ! -d "dist" ]; then
-        echo -e "${RED}错误: 前端编译失败，dist目录不存在${NC}"
-        exit 1
-    fi
-    
-    # 检查dist目录是否有内容
-    if [ -z "$(ls -A dist 2>/dev/null)" ]; then
-        echo -e "${RED}错误: dist目录为空${NC}"
-        exit 1
-    fi
-    
     echo -e "${GREEN}前端编译完成${NC}"
-    echo -e "${YELLOW}前端编译步骤完成，继续执行下一步...${NC}"
+        echo -e "${YELLOW}前端编译步骤完成，继续执行下一步...${NC}"
+    fi
 else
     echo -e "${RED}错误: 未找到package.json文件${NC}"
     exit 1
