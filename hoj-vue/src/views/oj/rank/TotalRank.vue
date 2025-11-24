@@ -280,8 +280,10 @@ export default {
         oiData.forEach(user => {
           const existing = userMap.get(user.uid);
           if (existing) {
-            // 如果用户已存在，累加AC、total和分数
-            existing.ac = (existing.ac || 0) + (user.ac || 0);
+            // 如果用户已存在，AC取最大值（因为ACM和OI的AC都是从user_acproblem统计的，应该相同）
+            // 如果不同，取最大值避免重复计算
+            existing.ac = Math.max(existing.ac || 0, user.ac || 0);
+            // total累加（因为ACM和OI的total统计方式不同）
             existing.total = (existing.total || 0) + (user.total || 0);
             existing.oiScore = (user.score || 0);
             existing.totalScore = (existing.acmRating || 0) + (user.score || 0);
