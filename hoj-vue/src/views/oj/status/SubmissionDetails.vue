@@ -145,7 +145,7 @@
       </vxe-table>
     </el-col>
     <template v-if="testCaseResult != null">
-      <template v-if="testCaseResult.judgeCaseMode == JUDGE_CASE_MODE.DEFAULT 
+      <template v-if="testCaseResult.judgeCaseMode == JUDGE_CASE_MODE.DEFAULT
         || testCaseResult.judgeCaseMode == JUDGE_CASE_MODE.ERGODIC_WITHOUT_ERROR ">
         <el-col
           :span="24"
@@ -267,6 +267,19 @@
         </el-col>
       </template>
     </template>
+    <el-col
+      v-if="showDownloadWaTestcase"
+      :span="24"
+      style="margin-top: 13px; text-align: right;"
+    >
+      <el-button
+        type="primary"
+        icon="el-icon-download"
+        @click="downloadWaTestcase"
+      >
+        {{ $t('m.Download_WA_Testcase') }}
+      </el-button>
+    </el-col>
     <template v-if="
         (submission.code && submission.share && codeShare) ||
           isSubmissionOwner ||
@@ -400,6 +413,11 @@ export default {
 
     submissionLengthFormat(length) {
       return utils.submissionLengthFormat(length);
+    },
+
+    downloadWaTestcase() {
+      const url = `/api/file/download-wa-testcase?submitId=${this.submission.submitId}`;
+      utils.downloadFile(url).catch(() => {});
     },
 
     getProblemUri(row) {
@@ -543,6 +561,15 @@ export default {
     },
     isSubmissionOwner() {
       return this.$store.getters.userInfo.uid === this.submission.uid;
+    },
+    showDownloadWaTestcase() {
+      return (
+        this.isAuthenticated &&
+        this.submission &&
+        (this.submission.status === JUDGE_STATUS_RESERVE.wa ||
+          this.submission.status === JUDGE_STATUS_RESERVE.pa) &&
+        this.submission.submitId
+      );
     },
   },
 };

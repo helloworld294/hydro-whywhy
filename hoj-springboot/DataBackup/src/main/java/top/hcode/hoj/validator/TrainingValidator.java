@@ -53,6 +53,10 @@ public class TrainingValidator {
         boolean isRoot = SecurityUtils.getSubject().hasRole("root"); // 是否为超级管理员
 
         if (training.getIsGroup()) {
+            if (userRolesVo == null) {
+                throw new StatusAccessDeniedException("对不起，请先登录以校验权限！");
+            }
+
             if (!groupValidator.isGroupMember(userRolesVo.getUid(), training.getGid()) && !isRoot) {
                 throw new StatusForbiddenException("对不起，您并非该团队内的成员，无权操作！");
             }
