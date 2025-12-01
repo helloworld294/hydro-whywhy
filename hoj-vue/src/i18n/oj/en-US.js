@@ -852,5 +852,6 @@ export const m = {
   Update_Successfully: 'Updated successfully',
   No_Data: 'No Data',
   Enter_keyword: 'Enter keyword',
+  Download_WA_Testcase: 'Download failed testcase',
   OK: 'OK'
 }

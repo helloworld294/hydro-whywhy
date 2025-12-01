@@ -113,7 +113,6 @@ public class TrainingController {
      * @Since 2021/11/22
      */
     @GetMapping("/get-training-rank")
-    @RequiresAuthentication
     public CommonResult<IPage<TrainingRankVO>> getTrainingRank(@RequestParam(value = "tid", required = true) Long tid,
                                                                @RequestParam(value = "limit", required = false) Integer limit,
                                                                @RequestParam(value = "currentPage", required = false) Integer currentPage,

@@ -41,4 +41,10 @@ public class TestCaseController {
     public void downloadTestcase(@RequestParam("pid") Long pid, HttpServletResponse response) throws StatusFailException, StatusForbiddenException {
         testCaseService.downloadTestcase(pid, response);
     }
+
+    @GetMapping("/download-wa-testcase")
+    @RequiresAuthentication
+    public void downloadWaTestcase(@RequestParam("submitId") Long submitId, HttpServletResponse response) throws StatusFailException, StatusForbiddenException {
+        testCaseService.downloadWaTestcase(submitId, response);
+    }
 }

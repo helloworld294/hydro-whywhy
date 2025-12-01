@@ -42,4 +42,9 @@ public class TestCaseServiceImpl implements TestCaseService {
     public void downloadTestcase(Long pid, HttpServletResponse response) throws StatusFailException, StatusForbiddenException {
         testCaseManager.downloadTestcase(pid, response);
     }
+
+    @Override
+    public void downloadWaTestcase(Long submitId, HttpServletResponse response) throws StatusFailException, StatusForbiddenException {
+        testCaseManager.downloadWaTestcase(submitId, response);
+    }
 }
