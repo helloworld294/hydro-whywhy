@@ -1,4 +1,3 @@
-const UglifyJsPlugin = require('uglifyjs-webpack-plugin') // 清除注释
 const CompressionWebpackPlugin = require('compression-webpack-plugin'); // 开启压缩
 
 // 是否为生产环境
@@ -91,8 +90,8 @@ module.exports={
         if (isProduction || devNeedCdn) args[0].cdn = cdn
         return args
     })
-    config.plugin('webpack-bundle-analyzer') // 查看打包文件体积大小
-      .use(require('webpack-bundle-analyzer').BundleAnalyzerPlugin)
+    // config.plugin('webpack-bundle-analyzer') // 查看打包文件体积大小
+    //   .use(require('webpack-bundle-analyzer').BundleAnalyzerPlugin)
     // ============注入cdn end============
   },
   configureWebpack: (config) => {
@@ -105,21 +104,25 @@ module.exports={
         "maxEntrypointSize": 10000000,
         "maxAssetSize": 30000000
       }
-      config.plugins.push(
-        new UglifyJsPlugin({
-          uglifyOptions: {
-            output: {
-              comments: false, // 去掉注释
+      // Webpack 5 使用内置的 Terser 插件进行代码压缩
+      config.optimization = {
+        minimize: true,
+        minimizer: [
+          new (require('terser-webpack-plugin'))({
+            terserOptions: {
+              format: {
+                comments: false, // 去掉注释
+              },
+              compress: {
+                drop_console: false,
+                drop_debugger: false,
+                // pure_funcs: ['console.log']//移除console
+              }
             },
-            warnings: false,
-            compress: {
-              drop_console: false,
-              drop_debugger: false,
-              // pure_funcs: ['console.log']//移除console
-            }
-          }
-        })
-      )
+            extractComments: false,
+          })
+        ]
+      }
        // 服务器也要相应开启gzip
        config.plugins.push(
         new CompressionWebpackPlugin({
