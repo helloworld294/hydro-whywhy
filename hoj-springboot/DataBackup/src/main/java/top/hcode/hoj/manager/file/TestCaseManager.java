@@ -302,9 +302,14 @@ public class TestCaseManager {
             throw new StatusForbiddenException("对不起，您无权限下载该题目的测试点数据！");
         }
 
-        if (!Objects.equals(judge.getStatus(), Constants.Judge.STATUS_WRONG_ANSWER.getStatus())
-                && !Objects.equals(judge.getStatus(), Constants.Judge.STATUS_PARTIAL_ACCEPTED.getStatus())) {
-            throw new StatusFailException("当前提交非WA或部分通过，无法下载对应测试点！");
+        List<Integer> allowedStatus = Arrays.asList(
+                Constants.Judge.STATUS_WRONG_ANSWER.getStatus(),
+                Constants.Judge.STATUS_PARTIAL_ACCEPTED.getStatus(),
+                Constants.Judge.STATUS_TIME_LIMIT_EXCEEDED.getStatus(),
+                Constants.Judge.STATUS_MEMORY_LIMIT_EXCEEDED.getStatus());
+
+        if (!allowedStatus.contains(judge.getStatus())) {
+            throw new StatusFailException("当前提交非WA、TLE、MLE或部分通过，无法下载对应测试点！");
         }
 
         if (!Objects.equals(judge.getCid(), 0L)) {
@@ -331,38 +336,45 @@ public class TestCaseManager {
 
         QueryWrapper<JudgeCase> judgeCaseQueryWrapper = new QueryWrapper<>();
         judgeCaseQueryWrapper.eq("submit_id", submitId)
-                .eq("status", Constants.Judge.STATUS_WRONG_ANSWER.getStatus())
-                .orderByAsc("seq")
-                .last("limit 1");
-        JudgeCase targetJudgeCase = judgeCaseEntityService.getOne(judgeCaseQueryWrapper, false);
-        if (targetJudgeCase == null) {
-            throw new StatusFailException("未找到WA测试点数据，无法下载！");
-        }
-
-        ProblemCase targetProblemCase = null;
-        if (targetJudgeCase.getCaseId() != null) {
-            targetProblemCase = problemCaseEntityService.getById(targetJudgeCase.getCaseId());
+                .in("status", Arrays.asList(
+                        Constants.Judge.STATUS_WRONG_ANSWER.getStatus(),
+                        Constants.Judge.STATUS_TIME_LIMIT_EXCEEDED.getStatus(),
+                        Constants.Judge.STATUS_MEMORY_LIMIT_EXCEEDED.getStatus()))
+                .orderByAsc("seq");
+        List<JudgeCase> targetJudgeCaseList = judgeCaseEntityService.list(judgeCaseQueryWrapper);
+        if (CollectionUtils.isEmpty(targetJudgeCaseList)) {
+            throw new StatusFailException("未找到WA/TLE/MLE测试点数据，无法下载！");
         }
 
         String testCaseDir = Constants.File.TESTCASE_BASE_FOLDER.getPath() + File.separator + "problem_" + judge.getPid();
-        String inputName = StrUtil.isNotBlank(targetJudgeCase.getInputData()) ? targetJudgeCase.getInputData() : "input.in";
-        String outputName = StrUtil.isNotBlank(targetJudgeCase.getOutputData()) ? targetJudgeCase.getOutputData() : "output.out";
-
-        String inputContent = readTestcaseContent(testCaseDir, inputName, targetProblemCase == null ? null : targetProblemCase.getInput());
-        String outputContent = readTestcaseContent(testCaseDir, outputName, targetProblemCase == null ? null : targetProblemCase.getOutput());
-        if (inputContent == null) {
-            throw new StatusFailException("未找到对应测试点输入数据，无法下载！");
-        }
-
-        String tmpDir = Constants.File.FILE_DOWNLOAD_TMP_FOLDER.getPath() + File.separator + "wa_testcase_" + submitId;
+        String tmpDir = Constants.File.FILE_DOWNLOAD_TMP_FOLDER.getPath() + File.separator + "failed_testcase_" + submitId;
         FileUtil.mkdir(tmpDir);
 
-        FileWriter inputWriter = new FileWriter(tmpDir + File.separator + inputName);
-        inputWriter.write(inputContent);
-        FileWriter outputWriter = new FileWriter(tmpDir + File.separator + outputName);
-        outputWriter.write(outputContent == null ? "" : outputContent);
+        for (JudgeCase targetJudgeCase : targetJudgeCaseList) {
+            ProblemCase targetProblemCase = null;
+            if (targetJudgeCase.getCaseId() != null) {
+                targetProblemCase = problemCaseEntityService.getById(targetJudgeCase.getCaseId());
+            }
 
-        String zipFileName = "problem_" + judge.getPid() + "_wa_testcase_" + submitId + ".zip";
+            String inputName = StrUtil.isNotBlank(targetJudgeCase.getInputData()) ? targetJudgeCase.getInputData() : "input.in";
+            String outputName = StrUtil.isNotBlank(targetJudgeCase.getOutputData()) ? targetJudgeCase.getOutputData() : "output.out";
+
+            String inputContent = readTestcaseContent(testCaseDir, inputName, targetProblemCase == null ? null : targetProblemCase.getInput());
+            String outputContent = readTestcaseContent(testCaseDir, outputName, targetProblemCase == null ? null : targetProblemCase.getOutput());
+            if (inputContent == null) {
+                throw new StatusFailException("未找到对应测试点输入数据，无法下载！");
+            }
+
+            String caseDir = tmpDir + File.separator + "case_" + targetJudgeCase.getSeq();
+            FileUtil.mkdir(caseDir);
+
+            FileWriter inputWriter = new FileWriter(caseDir + File.separator + inputName);
+            inputWriter.write(inputContent);
+            FileWriter outputWriter = new FileWriter(caseDir + File.separator + outputName);
+            outputWriter.write(outputContent == null ? "" : outputContent);
+        }
+
+        String zipFileName = "problem_" + judge.getPid() + "_failed_testcase_" + submitId + ".zip";
         String zipFilePath = Constants.File.FILE_DOWNLOAD_TMP_FOLDER.getPath() + File.separator + zipFileName;
         ZipUtil.zip(tmpDir, zipFilePath);
 
@@ -382,7 +394,7 @@ public class TestCaseManager {
             }
             bouts.flush();
         } catch (IOException e) {
-            log.error("下载WA测试点压缩文件异常------------>{}", e.getMessage());
+            log.error("下载异常测试点压缩文件异常------------>{}", e.getMessage());
             response.reset();
             response.setContentType("application/json");
             response.setCharacterEncoding("utf-8");
@@ -410,7 +422,7 @@ public class TestCaseManager {
             FileUtil.del(tmpDir);
             FileUtil.del(zipFilePath);
             log.info("[{}],[{}],submitId:[{}],pid:[{}],operatorUid:[{}],operatorUsername:[{}]",
-                    "Test_Case", "Download_WA", submitId, judge.getPid(), userRolesVo.getUid(), userRolesVo.getUsername());
+                    "Test_Case", "Download_Failed", submitId, judge.getPid(), userRolesVo.getUid(), userRolesVo.getUsername());
         }
     }
 
