@@ -61,10 +61,10 @@ public class GroupTrainingServiceImpl implements GroupTrainingService {
     }
 
     @Override
-    public CommonResult<Void> addTraining(TrainingDTO trainingDto) {
+    public CommonResult<Long> addTraining(TrainingDTO trainingDto) {
         try {
-            groupTrainingManager.addTraining(trainingDto);
-            return CommonResult.successResponse();
+            Long trainingId = groupTrainingManager.addTraining(trainingDto);
+            return CommonResult.successResponse(trainingId);
         } catch (StatusForbiddenException e) {
             return CommonResult.errorResponse(e.getMessage(), ResultStatus.FORBIDDEN);
         } catch (StatusNotFoundException e) {

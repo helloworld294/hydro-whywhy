@@ -324,6 +324,10 @@ export default {
         },
         (err) => {
           console.error('获取训练榜单失败:', err);
+          const errorMsg = err.data && err.data.msg ? err.data.msg : (err.message || '获取训练榜单失败，请稍后重试');
+          this.$message.error(errorMsg);
+          this.dataRank = [];
+          this.total = 0;
           this.loading = false;
         }
       );

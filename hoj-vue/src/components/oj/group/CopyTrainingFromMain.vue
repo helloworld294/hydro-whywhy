@@ -505,25 +505,23 @@ export default {
           throw new Error('创建训练课程失败：响应数据为空');
         }
         
-        // 尝试获取新创建的训练课程ID
+        // 获取新创建的训练课程ID
         let newTrainingId = null;
         console.log('完整响应数据结构:', JSON.stringify(createRes.data, null, 2));
         
-        // 尝试多种可能的ID获取路径
-        if (createRes.data.data && createRes.data.data.id) {
-          newTrainingId = createRes.data.data.id;
-          console.log('从createRes.data.data.id获取ID:', newTrainingId);
-        } else if (createRes.data.data && typeof createRes.data.data === 'number') {
-          newTrainingId = createRes.data.data;
-          console.log('从createRes.data.data获取ID:', newTrainingId);
-        } else if (createRes.data.id) {
-          newTrainingId = createRes.data.id;
-          console.log('从createRes.data.id获取ID:', newTrainingId);
-        } else if (createRes.data.training && createRes.data.training.id) {
-          newTrainingId = createRes.data.training.id;
-          console.log('从createRes.data.training.id获取ID:', newTrainingId);
-        } else {
-          // 如果没有返回ID，尝试通过查询最新创建的课程来获取ID
+        // 后端现在直接返回训练ID（Long类型）
+        if (createRes.data && createRes.data.data !== null && createRes.data.data !== undefined) {
+          if (typeof createRes.data.data === 'number') {
+            newTrainingId = createRes.data.data;
+            console.log('从createRes.data.data获取ID:', newTrainingId);
+          } else if (createRes.data.data.id) {
+            newTrainingId = createRes.data.data.id;
+            console.log('从createRes.data.data.id获取ID:', newTrainingId);
+          }
+        }
+        
+        if (!newTrainingId) {
+          // 如果没有返回ID，尝试通过查询最新创建的课程来获取ID（兼容旧版本）
           console.warn('创建训练课程成功，但未返回课程ID，尝试通过查询获取');
           try {
             // 等待一小段时间让服务器完成创建

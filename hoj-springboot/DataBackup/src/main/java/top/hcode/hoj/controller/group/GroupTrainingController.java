@@ -51,7 +51,7 @@ public class GroupTrainingController {
     }
 
     @PostMapping("/training")
-    public CommonResult<Void> addTraining(@RequestBody TrainingDTO trainingDto) {
+    public CommonResult<Long> addTraining(@RequestBody TrainingDTO trainingDto) {
         return groupTrainingService.addTraining(trainingDto);
     }
 

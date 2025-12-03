@@ -154,7 +154,7 @@ public class GroupTrainingManager {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void addTraining(TrainingDTO trainingDto) throws StatusForbiddenException, StatusNotFoundException, StatusFailException {
+    public Long addTraining(TrainingDTO trainingDto) throws StatusForbiddenException, StatusNotFoundException, StatusFailException {
 
         trainingValidator.validateTraining(trainingDto.getTraining());
 
@@ -204,6 +204,8 @@ public class GroupTrainingManager {
         if (!isOk) {
             throw new StatusFailException("添加失败！");
         }
+        
+        return training.getId();
     }
 
     @Transactional(rollbackFor = Exception.class)
