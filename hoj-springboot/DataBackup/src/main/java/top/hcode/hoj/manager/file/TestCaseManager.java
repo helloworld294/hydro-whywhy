@@ -6,6 +6,7 @@ import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.ZipUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +19,12 @@ import top.hcode.hoj.common.exception.StatusFailException;
 import top.hcode.hoj.common.exception.StatusForbiddenException;
 import top.hcode.hoj.common.exception.StatusSystemErrorException;
 import top.hcode.hoj.common.result.ResultStatus;
+import top.hcode.hoj.dao.judge.JudgeCaseEntityService;
+import top.hcode.hoj.dao.judge.JudgeEntityService;
 import top.hcode.hoj.dao.problem.ProblemCaseEntityService;
 import top.hcode.hoj.dao.problem.ProblemEntityService;
+import top.hcode.hoj.pojo.entity.judge.Judge;
+import top.hcode.hoj.pojo.entity.judge.JudgeCase;
 import top.hcode.hoj.pojo.entity.problem.Problem;
 import top.hcode.hoj.pojo.entity.problem.ProblemCase;
 import top.hcode.hoj.shiro.AccountProfile;
@@ -49,6 +54,12 @@ public class TestCaseManager {
 
     @Autowired
     private GroupValidator groupValidator;
+
+    @Autowired
+    private JudgeEntityService judgeEntityService;
+
+    @Autowired
+    private JudgeCaseEntityService judgeCaseEntityService;
 
     public Map<Object, Object> uploadTestcaseZip(MultipartFile file, Long gid, String mode) throws StatusFailException, StatusSystemErrorException, StatusForbiddenException {
         AccountProfile userRolesVo = (AccountProfile) SecurityUtils.getSubject().getPrincipal();
@@ -269,5 +280,146 @@ public class TestCaseManager {
             log.info("[{}],[{}],pid:[{}],operatorUid:[{}],operatorUsername:[{}]",
                     "Test_Case", "Download", pid, userRolesVo.getUid(), userRolesVo.getUsername());
         }
+    }
+
+    public void downloadWaTestcase(Long submitId, HttpServletResponse response) throws StatusFailException, StatusForbiddenException {
+        AccountProfile userRolesVo = (AccountProfile) SecurityUtils.getSubject().getPrincipal();
+        if (userRolesVo == null) {
+            throw new StatusForbiddenException("请先登录！");
+        }
+
+        boolean isRoot = SecurityUtils.getSubject().hasRole("root");
+        boolean isAdmin = SecurityUtils.getSubject().hasRole("admin");
+        boolean isProblemAdmin = SecurityUtils.getSubject().hasRole("problem_admin");
+
+        Judge judge = judgeEntityService.getById(submitId);
+        if (judge == null) {
+            throw new StatusFailException("对不起，该提交数据不存在！");
+        }
+
+        boolean isOwner = userRolesVo.getUid().equals(judge.getUid());
+        if (!isOwner && !isRoot && !isAdmin && !isProblemAdmin) {
+            throw new StatusForbiddenException("对不起，您无权限下载该题目的测试点数据！");
+        }
+
+        if (!Objects.equals(judge.getStatus(), Constants.Judge.STATUS_WRONG_ANSWER.getStatus())
+                && !Objects.equals(judge.getStatus(), Constants.Judge.STATUS_PARTIAL_ACCEPTED.getStatus())) {
+            throw new StatusFailException("当前提交非WA或部分通过，无法下载对应测试点！");
+        }
+
+        if (!Objects.equals(judge.getCid(), 0L)) {
+            throw new StatusForbiddenException("比赛提交暂不支持下载测试点数据！");
+        }
+
+        Problem problem = problemEntityService.getById(judge.getPid());
+        if (problem == null) {
+            throw new StatusFailException("对应题目不存在，无法下载测试点数据！");
+        }
+
+        Long gid = problem.getGid();
+        if (gid != null && !isRoot && !groupValidator.isGroupMember(userRolesVo.getUid(), gid)) {
+            throw new StatusForbiddenException("对不起，您无权限操作该比赛题目！");
+        }
+
+        if (Boolean.TRUE.equals(problem.getIsRemote())) {
+            throw new StatusFailException("远端题目暂不支持下载测试点数据！");
+        }
+
+        if (!Boolean.TRUE.equals(problem.getOpenCaseResult())) {
+            throw new StatusForbiddenException("该题目未开放测试点数据下载！");
+        }
+
+        QueryWrapper<JudgeCase> judgeCaseQueryWrapper = new QueryWrapper<>();
+        judgeCaseQueryWrapper.eq("submit_id", submitId)
+                .eq("status", Constants.Judge.STATUS_WRONG_ANSWER.getStatus())
+                .orderByAsc("seq")
+                .last("limit 1");
+        JudgeCase targetJudgeCase = judgeCaseEntityService.getOne(judgeCaseQueryWrapper, false);
+        if (targetJudgeCase == null) {
+            throw new StatusFailException("未找到WA测试点数据，无法下载！");
+        }
+
+        ProblemCase targetProblemCase = null;
+        if (targetJudgeCase.getCaseId() != null) {
+            targetProblemCase = problemCaseEntityService.getById(targetJudgeCase.getCaseId());
+        }
+
+        String testCaseDir = Constants.File.TESTCASE_BASE_FOLDER.getPath() + File.separator + "problem_" + judge.getPid();
+        String inputName = StrUtil.isNotBlank(targetJudgeCase.getInputData()) ? targetJudgeCase.getInputData() : "input.in";
+        String outputName = StrUtil.isNotBlank(targetJudgeCase.getOutputData()) ? targetJudgeCase.getOutputData() : "output.out";
+
+        String inputContent = readTestcaseContent(testCaseDir, inputName, targetProblemCase == null ? null : targetProblemCase.getInput());
+        String outputContent = readTestcaseContent(testCaseDir, outputName, targetProblemCase == null ? null : targetProblemCase.getOutput());
+        if (inputContent == null) {
+            throw new StatusFailException("未找到对应测试点输入数据，无法下载！");
+        }
+
+        String tmpDir = Constants.File.FILE_DOWNLOAD_TMP_FOLDER.getPath() + File.separator + "wa_testcase_" + submitId;
+        FileUtil.mkdir(tmpDir);
+
+        FileWriter inputWriter = new FileWriter(tmpDir + File.separator + inputName);
+        inputWriter.write(inputContent);
+        FileWriter outputWriter = new FileWriter(tmpDir + File.separator + outputName);
+        outputWriter.write(outputContent == null ? "" : outputContent);
+
+        String zipFileName = "problem_" + judge.getPid() + "_wa_testcase_" + submitId + ".zip";
+        String zipFilePath = Constants.File.FILE_DOWNLOAD_TMP_FOLDER.getPath() + File.separator + zipFileName;
+        ZipUtil.zip(tmpDir, zipFilePath);
+
+        FileReader fileReader = new FileReader(zipFilePath);
+        BufferedInputStream bins = new BufferedInputStream(fileReader.getInputStream());
+        OutputStream outs = null;
+        BufferedOutputStream bouts = null;
+        try {
+            outs = response.getOutputStream();
+            bouts = new BufferedOutputStream(outs);
+            response.setContentType("application/x-download");
+            response.setHeader("Content-disposition", "attachment;filename=" + URLEncoder.encode(zipFileName, "UTF-8"));
+            byte[] buffer = new byte[1024 * 10];
+            int bytesRead;
+            while ((bytesRead = bins.read(buffer, 0, 1024 * 10)) != -1) {
+                bouts.write(buffer, 0, bytesRead);
+            }
+            bouts.flush();
+        } catch (IOException e) {
+            log.error("下载WA测试点压缩文件异常------------>{}", e.getMessage());
+            response.reset();
+            response.setContentType("application/json");
+            response.setCharacterEncoding("utf-8");
+            Map<String, Object> map = new HashMap<>();
+            map.put("status", ResultStatus.SYSTEM_ERROR);
+            map.put("msg", "下载文件失败，请重新尝试！");
+            map.put("data", null);
+            try {
+                response.getWriter().println(JSONUtil.toJsonStr(map));
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
+        } finally {
+            try {
+                bins.close();
+                if (outs != null) {
+                    outs.close();
+                }
+                if (bouts != null) {
+                    bouts.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            FileUtil.del(tmpDir);
+            FileUtil.del(zipFilePath);
+            log.info("[{}],[{}],submitId:[{}],pid:[{}],operatorUid:[{}],operatorUsername:[{}]",
+                    "Test_Case", "Download_WA", submitId, judge.getPid(), userRolesVo.getUid(), userRolesVo.getUsername());
+        }
+    }
+
+    private String readTestcaseContent(String baseDir, String fileName, String dbContent) {
+        String filePath = baseDir + File.separator + fileName;
+        if (FileUtil.exist(filePath)) {
+            FileReader fileReader = new FileReader(filePath);
+            return fileReader.readString();
+        }
+        return dbContent;
     }
 }

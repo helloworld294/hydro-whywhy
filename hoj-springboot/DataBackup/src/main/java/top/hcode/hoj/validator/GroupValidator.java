@@ -55,6 +55,6 @@ public class GroupValidator {
 
         Group group = groupEntityService.getById(gid);
 
-        return group != null && uid.equals(group.getUid());
+        return group != null && uid != null && uid.equals(group.getUid());
     }
 }

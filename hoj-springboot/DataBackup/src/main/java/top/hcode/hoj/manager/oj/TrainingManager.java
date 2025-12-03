@@ -296,7 +296,7 @@ public class TrainingManager {
         int pos = 0;
         for (TrainingRecordVO trainingRecordVo : trainingRecordVOList) {
             // 超级管理员和训练创建者的提交不入排行榜
-            if (username.equals(trainingRecordVo.getUsername())
+            if ((username != null && username.equals(trainingRecordVo.getUsername()))
                     || superAdminUidList.contains(trainingRecordVo.getUid())) {
                 continue;
             }
