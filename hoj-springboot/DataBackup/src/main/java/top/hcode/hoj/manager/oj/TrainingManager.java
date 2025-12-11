@@ -284,6 +284,10 @@ public class TrainingManager {
 
         Map<Long, String> tpIdMapDisplayId = getTPIdMapDisplayId(tid);
         List<TrainingRecordVO> trainingRecordVOList = trainingRecordEntityService.getTrainingRecord(tid);
+        Set<String> existingRecordUids = trainingRecordVOList.stream()
+                .map(TrainingRecordVO::getUid)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
 
         // 团队训练需要将团队成员（不论是否加入或提交过）加入榜单
         if (gid != null) {
@@ -301,6 +305,9 @@ public class TrainingManager {
                         .in("uuid", groupMemberUidList);
                 List<UserInfo> groupMembers = userInfoEntityService.list(userInfoQueryWrapper);
                 for (UserInfo userInfo : groupMembers) {
+                    if (existingRecordUids.contains(userInfo.getUuid())) {
+                        continue;
+                    }
                     if (StrUtil.isNotBlank(keyword)) {
                         boolean isMatchKeyword = matchKeywordIgnoreCase(keyword, userInfo.getUsername())
                                 || matchKeywordIgnoreCase(keyword, userInfo.getRealname())
@@ -319,6 +326,7 @@ public class TrainingManager {
                     trainingRecordVO.setAvatar(userInfo.getAvatar());
                     trainingRecordVO.setStatus(Constants.Judge.STATUS_CANCELLED.getStatus());
                     trainingRecordVOList.add(trainingRecordVO);
+                    existingRecordUids.add(userInfo.getUuid());
                 }
             }
         }
