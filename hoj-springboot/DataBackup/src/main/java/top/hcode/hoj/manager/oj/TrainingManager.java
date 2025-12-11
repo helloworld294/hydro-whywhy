@@ -23,6 +23,7 @@ import top.hcode.hoj.pojo.bo.Pair_;
 import top.hcode.hoj.pojo.dto.RegisterTrainingDTO;
 import top.hcode.hoj.pojo.entity.judge.Judge;
 import top.hcode.hoj.pojo.entity.training.*;
+import top.hcode.hoj.pojo.entity.user.UserInfo;
 import top.hcode.hoj.pojo.vo.*;
 import top.hcode.hoj.shiro.AccountProfile;
 import top.hcode.hoj.utils.Constants;
@@ -284,10 +285,42 @@ public class TrainingManager {
         Map<Long, String> tpIdMapDisplayId = getTPIdMapDisplayId(tid);
         List<TrainingRecordVO> trainingRecordVOList = trainingRecordEntityService.getTrainingRecord(tid);
 
-        List<String> superAdminUidList = userInfoEntityService.getSuperAdminUidList();
+        // 团队训练需要将团队成员（不论是否加入或提交过）加入榜单
         if (gid != null) {
-            List<String> groupRootUidList = groupMemberEntityService.getGroupRootUidList(gid);
-            superAdminUidList.addAll(groupRootUidList);
+            QueryWrapper<GroupMember> groupMemberQueryWrapper = new QueryWrapper<>();
+            groupMemberQueryWrapper.select("uid")
+                    .eq("gid", gid);
+            List<String> groupMemberUidList = groupMemberEntityService.list(groupMemberQueryWrapper)
+                    .stream()
+                    .map(GroupMember::getUid)
+                    .collect(Collectors.toList());
+            if (!CollectionUtils.isEmpty(groupMemberUidList)) {
+                QueryWrapper<UserInfo> userInfoQueryWrapper = new QueryWrapper<>();
+                userInfoQueryWrapper.select("uuid", "username", "realname", "nickname", "school", "gender", "avatar")
+                        .eq("status", 0)
+                        .in("uuid", groupMemberUidList);
+                List<UserInfo> groupMembers = userInfoEntityService.list(userInfoQueryWrapper);
+                for (UserInfo userInfo : groupMembers) {
+                    if (StrUtil.isNotBlank(keyword)) {
+                        boolean isMatchKeyword = matchKeywordIgnoreCase(keyword, userInfo.getUsername())
+                                || matchKeywordIgnoreCase(keyword, userInfo.getRealname())
+                                || matchKeywordIgnoreCase(keyword, userInfo.getSchool());
+                        if (!isMatchKeyword) {
+                            continue;
+                        }
+                    }
+                    TrainingRecordVO trainingRecordVO = new TrainingRecordVO();
+                    trainingRecordVO.setUid(userInfo.getUuid());
+                    trainingRecordVO.setUsername(userInfo.getUsername());
+                    trainingRecordVO.setRealname(userInfo.getRealname());
+                    trainingRecordVO.setNickname(userInfo.getNickname());
+                    trainingRecordVO.setSchool(userInfo.getSchool());
+                    trainingRecordVO.setGender(userInfo.getGender());
+                    trainingRecordVO.setAvatar(userInfo.getAvatar());
+                    trainingRecordVO.setStatus(Constants.Judge.STATUS_CANCELLED.getStatus());
+                    trainingRecordVOList.add(trainingRecordVO);
+                }
+            }
         }
 
         List<TrainingRankVO> result = new ArrayList<>();
@@ -295,12 +328,6 @@ public class TrainingManager {
         HashMap<String, Integer> uidMapIndex = new HashMap<>();
         int pos = 0;
         for (TrainingRecordVO trainingRecordVo : trainingRecordVOList) {
-            // 超级管理员和训练创建者的提交不入排行榜
-            if (username.equals(trainingRecordVo.getUsername())
-                    || superAdminUidList.contains(trainingRecordVo.getUid())) {
-                continue;
-            }
-
             // 如果有搜索关键词则 需要符合模糊匹配 用户名、真实姓名、学校的用户可进行榜单记录
             if (StrUtil.isNotBlank(keyword)) {
                 boolean isMatchKeyword = matchKeywordIgnoreCase(keyword, trainingRecordVo.getUsername())
@@ -332,6 +359,10 @@ public class TrainingManager {
                 pos++;
             } else {
                 trainingRankVo = result.get(index);
+            }
+
+            if (trainingRecordVo.getTpid() == null) {
+                continue;
             }
             String displayId = tpIdMapDisplayId.get(trainingRecordVo.getTpid());
             HashMap<String, Object> problemSubmissionInfo = trainingRankVo
