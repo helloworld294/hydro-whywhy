@@ -23,6 +23,7 @@ import top.hcode.hoj.pojo.bo.Pair_;
 import top.hcode.hoj.pojo.dto.RegisterTrainingDTO;
 import top.hcode.hoj.pojo.entity.judge.Judge;
 import top.hcode.hoj.pojo.entity.training.*;
+import top.hcode.hoj.pojo.entity.user.UserInfo;
 import top.hcode.hoj.pojo.vo.*;
 import top.hcode.hoj.shiro.AccountProfile;
 import top.hcode.hoj.utils.Constants;
@@ -284,6 +285,50 @@ public class TrainingManager {
         Map<Long, String> tpIdMapDisplayId = getTPIdMapDisplayId(tid);
         List<TrainingRecordVO> trainingRecordVOList = trainingRecordEntityService.getTrainingRecord(tid);
 
+        // 团队训练需要将团队成员（不论是否加入或提交过）加入榜单
+        if (gid != null) {
+            QueryWrapper<GroupMember> groupMemberQueryWrapper = new QueryWrapper<>();
+            groupMemberQueryWrapper.select("uid")
+                    .eq("gid", gid)
+                    .in("auth", 3, 4, 5);
+            List<String> groupMemberUidList = groupMemberEntityService.list(groupMemberQueryWrapper)
+                    .stream()
+                    .map(GroupMember::getUid)
+                    .collect(Collectors.toList());
+            if (!CollectionUtils.isEmpty(groupMemberUidList)) {
+                QueryWrapper<UserInfo> userInfoQueryWrapper = new QueryWrapper<>();
+                userInfoQueryWrapper.select("uuid", "username", "realname", "nickname", "school", "gender", "avatar")
+                        .eq("status", 0)
+                        .in("uuid", groupMemberUidList);
+                List<UserInfo> groupMembers = userInfoEntityService.list(userInfoQueryWrapper);
+                for (UserInfo userInfo : groupMembers) {
+                    // 超级管理员和训练创建者的提交不入排行榜
+                    if (username.equals(userInfo.getUsername())
+                            || superAdminUidList.contains(userInfo.getUuid())) {
+                        continue;
+                    }
+                    if (StrUtil.isNotBlank(keyword)) {
+                        boolean isMatchKeyword = matchKeywordIgnoreCase(keyword, userInfo.getUsername())
+                                || matchKeywordIgnoreCase(keyword, userInfo.getRealname())
+                                || matchKeywordIgnoreCase(keyword, userInfo.getSchool());
+                        if (!isMatchKeyword) {
+                            continue;
+                        }
+                    }
+                    TrainingRecordVO trainingRecordVO = new TrainingRecordVO();
+                    trainingRecordVO.setUid(userInfo.getUuid());
+                    trainingRecordVO.setUsername(userInfo.getUsername());
+                    trainingRecordVO.setRealname(userInfo.getRealname());
+                    trainingRecordVO.setNickname(userInfo.getNickname());
+                    trainingRecordVO.setSchool(userInfo.getSchool());
+                    trainingRecordVO.setGender(userInfo.getGender());
+                    trainingRecordVO.setAvatar(userInfo.getAvatar());
+                    trainingRecordVO.setStatus(Constants.Judge.STATUS_CANCELLED.getStatus());
+                    trainingRecordVOList.add(trainingRecordVO);
+                }
+            }
+        }
+
         List<String> superAdminUidList = userInfoEntityService.getSuperAdminUidList();
         if (gid != null) {
             List<String> groupRootUidList = groupMemberEntityService.getGroupRootUidList(gid);
@@ -332,6 +377,10 @@ public class TrainingManager {
                 pos++;
             } else {
                 trainingRankVo = result.get(index);
+            }
+
+            if (trainingRecordVo.getTpid() == null) {
+                continue;
             }
             String displayId = tpIdMapDisplayId.get(trainingRecordVo.getTpid());
             HashMap<String, Object> problemSubmissionInfo = trainingRankVo
