@@ -563,16 +563,11 @@ export default {
       return this.$store.getters.userInfo.uid === this.submission.uid;
     },
     showDownloadWaTestcase() {
-      const availableStatus = [
-        JUDGE_STATUS_RESERVE.wa,
-        JUDGE_STATUS_RESERVE.pa,
-        JUDGE_STATUS_RESERVE.tle,
-        JUDGE_STATUS_RESERVE.mle,
-      ];
       return (
         this.isAuthenticated &&
         this.submission &&
-        availableStatus.includes(this.submission.status) &&
+        (this.submission.status === JUDGE_STATUS_RESERVE.wa ||
+          this.submission.status === JUDGE_STATUS_RESERVE.pa) &&
         this.submission.submitId
       );
     },
