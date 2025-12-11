@@ -22,6 +22,7 @@ import top.hcode.hoj.manager.admin.training.AdminTrainingRecordManager;
 import top.hcode.hoj.pojo.bo.Pair_;
 import top.hcode.hoj.pojo.dto.RegisterTrainingDTO;
 import top.hcode.hoj.pojo.entity.judge.Judge;
+import top.hcode.hoj.pojo.entity.group.GroupMember;
 import top.hcode.hoj.pojo.entity.training.*;
 import top.hcode.hoj.pojo.entity.user.UserInfo;
 import top.hcode.hoj.pojo.vo.*;
