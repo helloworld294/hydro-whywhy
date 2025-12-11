@@ -285,6 +285,12 @@ public class TrainingManager {
         Map<Long, String> tpIdMapDisplayId = getTPIdMapDisplayId(tid);
         List<TrainingRecordVO> trainingRecordVOList = trainingRecordEntityService.getTrainingRecord(tid);
 
+        List<String> superAdminUidList = userInfoEntityService.getSuperAdminUidList();
+        if (gid != null) {
+            List<String> groupRootUidList = groupMemberEntityService.getGroupRootUidList(gid);
+            superAdminUidList.addAll(groupRootUidList);
+        }
+
         // 团队训练需要将团队成员（不论是否加入或提交过）加入榜单
         if (gid != null) {
             QueryWrapper<GroupMember> groupMemberQueryWrapper = new QueryWrapper<>();
@@ -327,12 +333,6 @@ public class TrainingManager {
                     trainingRecordVOList.add(trainingRecordVO);
                 }
             }
-        }
-
-        List<String> superAdminUidList = userInfoEntityService.getSuperAdminUidList();
-        if (gid != null) {
-            List<String> groupRootUidList = groupMemberEntityService.getGroupRootUidList(gid);
-            superAdminUidList.addAll(groupRootUidList);
         }
 
         List<TrainingRankVO> result = new ArrayList<>();
