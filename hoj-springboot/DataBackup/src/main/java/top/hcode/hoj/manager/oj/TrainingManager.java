@@ -22,6 +22,7 @@ import top.hcode.hoj.manager.admin.training.AdminTrainingRecordManager;
 import top.hcode.hoj.pojo.bo.Pair_;
 import top.hcode.hoj.pojo.dto.RegisterTrainingDTO;
 import top.hcode.hoj.pojo.entity.judge.Judge;
+import top.hcode.hoj.pojo.entity.group.GroupMember;
 import top.hcode.hoj.pojo.entity.training.*;
 import top.hcode.hoj.pojo.entity.user.UserInfo;
 import top.hcode.hoj.pojo.vo.*;
@@ -285,6 +286,12 @@ public class TrainingManager {
         Map<Long, String> tpIdMapDisplayId = getTPIdMapDisplayId(tid);
         List<TrainingRecordVO> trainingRecordVOList = trainingRecordEntityService.getTrainingRecord(tid);
 
+        List<String> superAdminUidList = userInfoEntityService.getSuperAdminUidList();
+        if (gid != null) {
+            List<String> groupRootUidList = groupMemberEntityService.getGroupRootUidList(gid);
+            superAdminUidList.addAll(groupRootUidList);
+        }
+
         // 团队训练需要将团队成员（不论是否加入或提交过）加入榜单
         if (gid != null) {
             QueryWrapper<GroupMember> groupMemberQueryWrapper = new QueryWrapper<>();
@@ -327,12 +334,6 @@ public class TrainingManager {
                     trainingRecordVOList.add(trainingRecordVO);
                 }
             }
-        }
-
-        List<String> superAdminUidList = userInfoEntityService.getSuperAdminUidList();
-        if (gid != null) {
-            List<String> groupRootUidList = groupMemberEntityService.getGroupRootUidList(gid);
-            superAdminUidList.addAll(groupRootUidList);
         }
 
         List<TrainingRankVO> result = new ArrayList<>();
