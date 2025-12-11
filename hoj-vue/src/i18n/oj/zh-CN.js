@@ -855,6 +855,6 @@ export const m = {
   Update_Successfully: '更新成功',
   No_Data: '暂无数据',
   Enter_keyword: '请输入关键词',
-  Download_WA_Testcase: '下载该题测试点',
+  Download_WA_Testcase: '下载所有WA/TLE/MLE测试点',
   OK: '确定'
 }
